@@ -1,6 +1,4 @@
-## My Project
-
-TODO: Fill this README out!
+## Text2SQL QuickStart
 
 Be sure to:
 
