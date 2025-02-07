@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Text2SQL 관련 리소스 생성을 위한 메인 스택'
+
+Resources:
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: './vpc.yaml'
+      TimeoutInMinutes: 10
+  SubnetStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: './subnet.yaml'
+      TimeoutInMinutes: 10
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !GetAtt VPCStack.Outputs.VPCId
+  SubnetIds:
+    Description: Subnet IDs
+    Value: !GetAtt SubnetStack.Outputs.SubnetIds
+  RedshiftSubnetGroupName:
+    Description: Redshift Subnet Group Name
+    Value: !GetAtt SubnetStack.Outputs.RedshiftSubnetGroupName

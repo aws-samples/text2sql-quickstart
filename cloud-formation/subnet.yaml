@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Subnet 생성 템플릿'
+
+Parameters:
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID
+
+Resources:
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCId
+      CidrBlock: '10.0.0.0/24'
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs
+          Ref: AWS::Region
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Subnet1'
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCId
+      CidrBlock: '10.0.1.0/24'
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs
+          Ref: AWS::Region
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Subnet2'
+
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: Redshift Subnet Group
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+
+Outputs:
+  SubnetIds:
+    Description: 생성된 Subnet ID 목록
+    Value: !Join [',', [!Ref Subnet1, !Ref Subnet2]]
+  RedshiftSubnetGroupName:
+    Description: 생성된 Redshift Subnet Group 이름
+    Value: !Ref RedshiftSubnetGroup

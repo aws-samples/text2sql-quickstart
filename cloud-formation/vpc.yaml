@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'VPC 생성을 위한 CloudFormation 템플릿'
+
+Parameters:
+  VPCName:
+    Type: String
+    Description: 'VPC 이름'
+    Default: 'Text2SqlVPC'
+  VPCCidrBlock:
+    Type: String
+    Description: 'VPC CIDR 블록'
+    Default: '10.0.0.0/16'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VPCCidrBlock
+      Tags:
+        - Key: Name
+          Value: !Ref VPCName
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Text2SQL-VPC-IGW
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+Outputs:
+  VPCId:
+    Description: '생성된 VPC ID'
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPCID'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
