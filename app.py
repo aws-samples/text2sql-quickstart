@@ -442,7 +442,6 @@ def render_clear_indices_page():
 def process_query(user_query: str, search_flow, performance_monitor) -> Dict[str, Any]:
     """동기적으로 쿼리 처리"""
     workflow_op_id = performance_monitor.start_operation("complete_workflow")
-    print("쿼리 처리 시작")
     result = search_flow.execute(query=user_query)
     performance_monitor.end_operation(workflow_op_id, result)
 
