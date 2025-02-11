@@ -1,0 +1,16 @@
+prompt: |
+  As a database expert, create a Redshift CREATE TABLE IF NOT EXISTS SQL statement based on the following specifications.
+  The table should be created in the 'gold' schema.
+
+  Table Information:
+  {table_info}
+
+  Requirements:
+  1. Use CREATE TABLE IF NOT EXISTS syntax
+  2. Include all columns with appropriate data types
+  3. Add proper constraints (PRIMARY KEY, NOT NULL, etc.) but DO NOT use CHECK constraints as they are not supported in Redshift
+  4. Use Redshift-specific optimizations
+  5. Include DISTKEY and SORTKEY if applicable
+  6. Provide only CREATE statement.
+
+  Provide only the SQL statement without any explanation.

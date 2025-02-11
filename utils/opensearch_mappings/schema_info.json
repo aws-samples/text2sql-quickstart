@@ -120,6 +120,12 @@
                 "properties": {
                     "name": {"type": "keyword"},
                     "type": {"type": "keyword"},
+                    "examples": {
+                        "type": "text"
+                    },
+                    "valid_values": {
+                        "type": "text"
+                    },
                     "description": {
                         "type": "object",
                         "properties": {

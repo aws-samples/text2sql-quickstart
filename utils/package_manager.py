@@ -2,9 +2,6 @@ import boto3
 import redshift_connector
 from botocore.exceptions import ClientError
 import time
-
-from requests.packages import package
-
 from config import REDSHIFT_CONFIG, AWS_REGION, OPENSEARCH_CONFIG
 import streamlit as st
 
@@ -178,6 +175,11 @@ class PackageManager:
         except ClientError as e:
             st.error(f"S3 버킷 삭제 중 문제가 발생했습니다: {e}")
 
+    def _get_account_id(self):
+        # STS 클라이언트를 생성합니다.
+        sts_client = boto3.client('sts')
+        # 현재 AWS 계정 ID를 가져옵니다.
+        return sts_client.get_caller_identity().get('Account')
     # 버킷 생성
     def _create_bucket(self, bucket_name: str):
         try:
@@ -227,7 +229,7 @@ class PackageManager:
             st.info(f"도메인 {OPENSEARCH_CONFIG.get('domain')}에 텍스트 사전 연결 해제 중...")
             while True:
                 associating_package = self.describe_package(package_id=package_id, domain_name=domain_name)
-                st.write(associating_package)
+
                 # 도메인과의 연결 상태 확인
                 if 'domain_package_status' not in associating_package:
                     st.success("텍스트 사전 연결 해제 완료.")
@@ -282,6 +284,9 @@ class PackageManager:
 
         result = {}
         try:
+            domain_name = OPENSEARCH_CONFIG.get('domain')
+            account_id = self._get_account_id()
+            s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
             # 패키지 도메인에서 연결 해제
             dissociate_response = self._dessociate_package(package_id=package_id, domain_name=domain_name)
 
@@ -291,11 +296,11 @@ class PackageManager:
                 delete_response = self.delete_package(package_id=package_id)
 
                 # S3 버킷 비우기
-                self._delete_bucket_objects(bucket_name=package_name)
+                self._delete_bucket_objects(bucket_name=s3_bucket_name)
 
                 # S3 버킷 제거
-                if self.wait_bucket_objects_deleted(bucket_name=package_name):
-                    self._delete_bucket(bucket_name=package_name)
+                if self.wait_bucket_objects_deleted(bucket_name=s3_bucket_name):
+                    self._delete_bucket(bucket_name=s3_bucket_name)
                     delete_query = """
                                        delete from synonym_dictionary 
                                         where package_id = %s
@@ -314,10 +319,14 @@ class PackageManager:
     def update_dictionary(self, package_id: str, package_name: str, synonym_file):
         result = {}
         try:
+            domain_name = OPENSEARCH_CONFIG.get('domain')
+            account_id = self._get_account_id()
+            s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
+
             # 새로운 텍스트 사전 업로드
             self._upload_file(
                 file=synonym_file,
-                bucket_name=package_name,
+                bucket_name=s3_bucket_name,
                 s3_key=synonym_file.name
             )
 
@@ -325,7 +334,7 @@ class PackageManager:
             response = self.opensearch_client.update_package(
                 PackageID=package_id,
                 PackageSource={
-                    'S3BucketName': package_name,
+                    'S3BucketName': s3_bucket_name,
                     'S3Key': synonym_file.name
                 },
                 PackageConfiguration={
@@ -333,9 +342,6 @@ class PackageManager:
                     'ConfigurationRequirement': 'NONE'
                 }
             )
-
-            domain_name = OPENSEARCH_CONFIG.get('domain')
-
             # 패키지 업데이트 여부 확인
             package_available = self.wait_package_available(package_id=package_id, domain_name=domain_name)
             if package_available:
@@ -359,16 +365,17 @@ class PackageManager:
                                """
                     conn = redshift_connector.connect(**self.redshift_config)
                     cursor = conn.cursor()
-                    cursor.execute(update_query, (package_name, synonym_file.name, package_id, package_name))
+                    cursor.execute(update_query, (s3_bucket_name, synonym_file.name, package_id, package_name))
                     conn.commit()
                     st.success(f"텍스트 사전 {package_name} 수정이 완료됐습니다.")
 
                     result['package_id'] = package_id
                     result['package_name'] = package_name
-                    result['bucket_name'] = package_name
+                    result['bucket_name'] = s3_bucket_name
                     result['synonym_file'] = synonym_file
                     result['domain_name'] = domain_name
-                    result['package_version'] = package['package_version']
+                    result['package_version'] = package_available['package_version']
+
                     result['package_status'] = package_available['package_status']
                     result['domain_package_status'] = package_associated['domain_package_status']
         except Exception as e:
@@ -381,13 +388,17 @@ class PackageManager:
 
         result = {}
         try:
+            domain_name = OPENSEARCH_CONFIG.get('domain')
+            account_id = self._get_account_id()
+            s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
+
             # 버킷 유무 확인
-            if not self._bucket_exists(package_name):
-                self._create_bucket(package_name)
+            if not self._bucket_exists(s3_bucket_name):
+                self._create_bucket(s3_bucket_name)
 
             # 텍스트 사전 업로드
             self._upload_file(file=synonym_file,
-                              bucket_name=package_name,
+                              bucket_name=s3_bucket_name,
                               s3_key=synonym_file.name)
 
             # 패키지 생성
@@ -395,13 +406,12 @@ class PackageManager:
                 PackageName=package_name,
                 PackageType='TXT-DICTIONARY',
                 PackageSource={
-                    'S3BucketName': package_name,
+                    'S3BucketName': s3_bucket_name,
                     'S3Key': synonym_file.name
                 }
             )
 
             package_id = package['PackageDetails']['PackageID']
-            domain_name = OPENSEARCH_CONFIG.get('domain')
 
             # 패키지 활성화 여부 확인
             package_available = self.wait_package_available(package_id=package_id, domain_name=domain_name)
@@ -429,12 +439,12 @@ class PackageManager:
                     """
                     conn = redshift_connector.connect(**self.redshift_config)
                     cursor = conn.cursor()
-                    cursor.execute(insert_query, (package_id, package_name, package_name, synonym_file.name, domain_name))
+                    cursor.execute(insert_query, (package_id, package_name, s3_bucket_name, synonym_file.name, domain_name))
                     conn.commit()
 
                     result['package_id'] = package_id
                     result['package_name'] = package_name
-                    result['bucket_name'] = package_name
+                    result['bucket_name'] = s3_bucket_name
                     result['synonym_file'] = synonym_file
                     result['domain_name'] = domain_name
                     result['package_version'] = package['package_version']

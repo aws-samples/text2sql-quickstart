@@ -11,6 +11,7 @@ from utils.response_handler import ResponseHandler
 from typing import Dict, Any
 from chains.feedback_handler import FeedbackHandler
 
+
 class TextToSQLFlow:
     def __init__(
             self,
@@ -91,7 +92,13 @@ class TextToSQLFlow:
         def analyze_intent(state: WorkflowState) -> WorkflowState:
             """의도 분석 노드"""
             try:
+                # 노드 실행 시간 측정 시작
+                node_operation_id = self.performance_monitor.start_operation("analyze_intent")
+
                 analysis_result = self.intent_analyzer.analyze_and_validate(state["query"])
+
+                # 노드 실행 시간 측정 종료
+                self.performance_monitor.end_operation(node_operation_id)
 
                 if not analysis_result["is_valid"]:
                     return {
@@ -132,10 +139,29 @@ class TextToSQLFlow:
         def search_schema(state: WorkflowState) -> WorkflowState:
             """스키마 검색 노드"""
             try:
+                # 노드 실행 시간 측정 시작
+                node_operation_id = self.performance_monitor.start_operation("search_schema")
+
+                # OpenSearch 검색 수행
                 search_results = self.opensearch_manager.integrated_search(
                     query=state["query"],
                     top_k=5
-                ) or {}  # None이 반환되면 빈 딕셔너리로 처리
+                ) or {}
+
+                # 검색 결과가 비어있는 경우
+                if not search_results or not search_results.get('schema_info'):
+                    return {
+                        **state,
+                        "current_step": "complete",
+                        "search_results": search_results,
+                        "validation_results": {
+                            "is_valid": False,
+                            "feedback": "검색 결과가 없습니다.",
+                            "suggested_actions": ["rephrase_question"]
+                        },
+                        "sql": "",
+                        "query_results": []
+                    }
 
                 # 검색 결과 검증
                 validation = self.search_validator.validate_search_results(
@@ -143,23 +169,27 @@ class TextToSQLFlow:
                     state["intent"]
                 )
 
-                # 검증 실패 시 즉시 완료
-                if not validation["is_valid"] or not validation.get("relevant_schemas"):
+                # 검증 실패 시
+                if not validation["is_valid"]:
                     return {
                         **state,
                         "current_step": "complete",
                         "search_results": search_results,
                         "validation_results": validation,
-                        "sql": "",  # SQL 생성 없이 빈 문자열 반환
-                        "query_results": [],
-                        "feedback": "관련된 스키마를 찾을 수 없습니다. 다른 방식으로 질문해주세요."
+                        "sql": "",
+                        "query_results": []
                     }
+
+                # 노드 실행 시간 측정 종료
+                self.performance_monitor.end_operation(node_operation_id)
 
                 return {
                     **state,
                     "current_step": "generate_sql",
                     "search_results": search_results,
-                    "validation_results": validation
+                    "validation_results": validation,
+                    "schema_validated": True
+
                 }
 
             except Exception as e:
@@ -178,14 +208,17 @@ class TextToSQLFlow:
         # 3. SQL 생성 노드
         def generate_sql(state: WorkflowState) -> WorkflowState:
             """SQL 생성 노드"""
-            # 스키마 검증 재확인
-            if not state["validation_results"].get("is_valid") or \
-                    not state["validation_results"].get("relevant_schemas"):
+            # 노드 실행 시간 측정 시작
+            node_operation_id = self.performance_monitor.start_operation("generate_sql")
+
+            # 검색 결과와 검증 확인
+            if not state.get("search_results") or not state.get("validation_results", {}).get("is_valid"):
                 return {
                     **state,
                     "current_step": "complete",
                     "sql": "",
-                    "feedback": "관련된 스키마가 없어 SQL을 생성할 수 없습니다."
+                    "feedback": "유효한 스키마 정보가 없습니다."
+
                 }
 
             sql_response = self.sql_generator.generate_sql(
@@ -201,6 +234,9 @@ class TextToSQLFlow:
                     "feedback": sql_response["error"]
                 }
 
+            # 노드 실행 시간 측정 종료
+            self.performance_monitor.end_operation(node_operation_id)
+
             return {
                 **state,
                 "current_step": "validate_sql",
@@ -210,6 +246,9 @@ class TextToSQLFlow:
         # 3.5. SQL 검증 노드
         def validate_sql(state: WorkflowState) -> WorkflowState:
             """SQL 검증 노드"""
+            # 노드 실행 시간 측정 시작
+            node_operation_id = self.performance_monitor.start_operation("validate_sql")
+
             if not state.get("sql"):
                 return {
                     **state,
@@ -235,6 +274,9 @@ class TextToSQLFlow:
                     "suggested_actions": validation_result.get("suggestions", [])
                 }
 
+            # 노드 실행 시간 측정 종료
+            self.performance_monitor.end_operation(node_operation_id)
+
             return {
                 **state,
                 "current_step": "execute_sql",
@@ -244,6 +286,9 @@ class TextToSQLFlow:
         # 4. SQL 실행 노드
         def execute_sql(state: WorkflowState) -> WorkflowState:
             """SQL 실행 노드"""
+            # 노드 실행 시간 측정 시작
+            node_operation_id = self.performance_monitor.start_operation("execute_sql")
+
             # SQL이 비어있는 경우 실행하지 않음
             if not state.get("sql"):
                 return {
@@ -255,6 +300,9 @@ class TextToSQLFlow:
 
             results = self.redshift_manager.execute_query(state["sql"])
 
+            # 노드 실행 시간 측정 종료
+            self.performance_monitor.end_operation(node_operation_id)
+
             return {
                 **state,
                 "current_step": "handle_feedback",
@@ -264,6 +312,9 @@ class TextToSQLFlow:
         # 5. 피드백 처리 노드
         def handle_feedback(state: WorkflowState) -> WorkflowState:
             """피드백 처리 노드"""
+            # 노드 실행 시간 측정 시작
+            node_operation_id = self.performance_monitor.start_operation("handle_feedback")
+
             if state.get("feedback_requested", False):
                 feedback_result = self.feedback_handler.save_feedback(state)
                 return {
@@ -271,6 +322,9 @@ class TextToSQLFlow:
                     "current_step": "complete",
                     "feedback_result": feedback_result
                 }
+            # 노드 실행 시간 측정 종료
+            self.performance_monitor.end_operation(node_operation_id)
+
             return {
                 **state,
                 "current_step": "complete",
@@ -298,11 +352,22 @@ class TextToSQLFlow:
                 if "performance_metrics" not in updated_metadata:
                     updated_metadata["performance_metrics"] = {}
 
+                # 각 노드별 실행 시간 가져오기
+                node_metrics = self.performance_monitor.get_operation_metrics()
+
                 updated_metadata["performance_metrics"].update({
                     "total_execution_time": execution_time,
                     "has_results": bool(state.get("query_results")),
                     "result_count": len(state.get("query_results", [])),
-                    "has_error": bool(state.get("validation_results", {}).get("is_valid") is False)
+                    "has_error": bool(state.get("validation_results", {}).get("is_valid") is False),
+                    "node_execution_times": {
+                        "analyze_intent": node_metrics.get("analyze_intent", 0),
+                        "search_schema": node_metrics.get("search_schema", 0),
+                        "generate_sql": node_metrics.get("generate_sql", 0),
+                        "validate_sql": node_metrics.get("validate_sql", 0),
+                        "execute_sql": node_metrics.get("execute_sql", 0),
+                        "handle_feedback": node_metrics.get("handle_feedback", 0)
+                    }
                 })
 
                 # 최종 상태 반환
@@ -311,9 +376,11 @@ class TextToSQLFlow:
                     "current_step": "completed",  # 상태를 'completed'로 변경
                     "metadata": updated_metadata,
                     # 선택적으로 불필요한 중간 데이터 정리
-                    "messages": [msg for msg in state.get("messages", []) if isinstance(msg, (HumanMessage, AIMessage))],
+                    "messages": [msg for msg in state.get("messages", []) if
+                                 isinstance(msg, (HumanMessage, AIMessage))],
                     # 필요한 경우 에러 정보 포함
-                    "error": state.get("validation_results", {}).get("feedback") if not state["validation_results"].get("is_valid", True) else None
+                    "error": state.get("validation_results", {}).get("feedback") if not state["validation_results"].get(
+                        "is_valid", True) else None
                 }
 
             except Exception as e:

@@ -1,0 +1,60 @@
+{
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 2,
+        "index": {
+            "knn": true
+        },
+        "analysis": {
+            "analyzer": {
+                "korean": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase"]
+                },
+                "korean_search_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase", "synonym_filter"]
+                }
+            },
+            "filter": {
+                "synonym_filter": {
+                    "type": "synonym",
+                    "synonyms_path": "analyzers/F224293479",
+                    "updateable": true
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "natural_language": {
+                "type": "text",
+                "analyzer": "korean",
+                "fields": {
+                    "keyword": {"type": "keyword"}
+                }
+            },
+            "sql": {
+                "type": "keyword",
+                "analyzer": "korean",
+                "search_analyzer": "korean_search_analyzer"
+            },
+            "results_sample": {"type": "object"},
+            "feedback_time": {"type": "date"},
+            "execution_success": {"type": "boolean"},
+            "performance_metrics": {
+                "type": "object",
+                "properties": {
+                    "execution_time": {"type": "float"},
+                    "row_count": {"type": "integer"}
+                }
+            },
+            "embedding": {
+                "type": "knn_vector",
+                "dimension": 1024
+            }
+        }
+    }
+}

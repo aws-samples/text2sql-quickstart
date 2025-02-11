@@ -1,0 +1,94 @@
+{
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 2,
+        "index": {
+            "knn": true
+        },
+        "analysis": {
+            "analyzer": {
+                "korean": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase"]
+                },
+                "korean_search_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase", "synonym_filter"]
+                }
+            },
+            "filter": {
+                "synonym_filter": {
+                    "type": "synonym",
+                    "synonyms_path": "analyzers/F224293479",
+                    "updateable": true
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "word": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "keyword"},
+                    "english": {"type": "keyword"}
+                }
+            },
+            "abbreviation": {"type": "keyword"},
+            "technical_term": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "keyword"},
+                    "english": {"type": "keyword"}
+                }
+            },
+            "column_reference": {
+                "type": "object",
+                "properties": {
+                    "column_name": {"type": "keyword"},
+                    "table_name": {"type": "keyword"},
+                    "schema_name": {"type": "keyword"}
+                }
+            },
+            "description": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean"},
+                    "english": {"type": "text"}
+                }
+            },
+            "examples": {
+                "type": "nested",
+                "properties": {
+                    "value": {"type": "keyword"},
+                    "description": {
+                        "type": "object",
+                        "properties": {
+                            "korean": {"type": "text", "analyzer": "korean"},
+                            "english": {"type": "text"}
+                        }
+                    }
+                }
+            },
+            "synonyms": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean"},
+                    "english": {"type": "text"}
+                }
+            },
+            "related_terms": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean"},
+                    "english": {"type": "text"}
+                }
+            },
+            "search_text": {"type": "text", "analyzer": "korean"},
+            "embedding": {"type": "knn_vector", "dimension": 1024},
+            "updated_at": {"type": "date"}
+        }
+    }
+}

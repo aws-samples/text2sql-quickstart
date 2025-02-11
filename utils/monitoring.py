@@ -94,3 +94,20 @@ class PerformanceMonitor:
                                     len([m for m in self.metrics if "duration" in m]) if self.metrics else 0
             }
         }
+
+    def get_operation_metrics(self) -> Dict[str, float]:
+        """각 작업별 가장 최근 실행 시간 반환"""
+        operation_metrics = {}
+        
+        # metrics 리스트를 역순으로 순회하여 각 작업의 가장 최근 실행 시간을 찾음
+        for metric in reversed(self.metrics):
+            operation_name = metric["operation_name"]
+            if operation_name not in operation_metrics and metric.get("status") == "completed":
+                operation_metrics[operation_name] = metric.get("duration", 0)
+        
+        return operation_metrics
+
+    def clear_metrics(self) -> None:
+        """메트릭 데이터 초기화"""
+        self.metrics = []
+        self.last_operation = None
