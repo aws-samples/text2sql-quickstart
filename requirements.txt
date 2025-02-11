@@ -13,5 +13,8 @@ opensearch-py
 pydantic>=2.0.0
 pytest
 sqlparse
+botocore
+requests
+PyYAML
 
 # Opensearch node -> Packages > Add Nori Plugin

@@ -4,7 +4,6 @@ import json
 from datetime import datetime
 from utils.indice_opensearch import OpenSearchManager
 
-
 class FeedbackHandler:
     def __init__(self, opensearch_manager: OpenSearchManager):
         self.opensearch_manager = opensearch_manager

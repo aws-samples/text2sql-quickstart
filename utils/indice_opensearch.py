@@ -98,15 +98,15 @@ class OpenSearchManager:
         """Index schema information using the schema indexer"""
         if not self.create_indices():
             return False
-
+            
         # 스키마 정보 인덱싱
         schema_result = index_schema(self.client, self.embedder, schema_data, version_id)
         if not schema_result:
             return False
-
+            
         # 샘플 쿼리 인덱싱 (스키마 인덱싱과 함께 자동으로 실행)
         query_result = index_sample_queries(self.client, self.embedder, schema_data, version_id)
-
+        
         return schema_result and query_result
 
     def index_sample_queries(self, schema_data: Dict, version_id: str = None) -> bool:
@@ -152,11 +152,24 @@ class OpenSearchManager:
     def integrated_search(self, query: str, top_k: int = 10) -> Dict[str, List[Dict]]:
         """Perform integrated search across all indices"""
         try:
-            results = {
-                'schema_info': self._search_schema(query, top_k),
-                'sample_queries': self._search_queries(query, top_k),
-                'user_feedback_queries': self._search_user_feedback_queries(query, top_k)
-            }
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                # 각 검색 작업을 병렬로 실행
+                futures = {
+                    executor.submit(self._search_schema, query, top_k): 'schema_info',
+                    executor.submit(self._search_queries, query, top_k): 'sample_queries',
+                    executor.submit(self._search_user_feedback_queries, query, top_k): 'user_feedback_queries'
+                }
+
+                results = {}
+                for future in as_completed(futures):
+                    search_type = futures[future]
+                    try:
+                        results[search_type] = future.result()
+                    except Exception as e:
+                        print(f"{search_type} 검색 중 오류 발생: {str(e)}")
+                        results[search_type] = []
 
             return results
 
@@ -360,27 +373,6 @@ class OpenSearchManager:
         response = self.client.search(index='sample_queries', body=search_body)
         return response
 
-    def _semantic_user_feedback_query_search(self, query: str):
-        embedding_vector = self._get_embedding(text=query)
-        search_body = {
-            "size": self.k,
-            "query": {
-                "knn": {
-                    "embedding": {
-                        "vector": embedding_vector,
-                        "k": 8
-                    }
-                }
-            }
-        }
-
-        response = self.client.search(
-            index="user_feedback_queries",
-            body=search_body
-        )
-
-        return response
-
     def _semantic_query_search(self, query: str):
         """Semantic search for sample queries"""
         embedding_vector = self._get_embedding(text=query)
@@ -527,18 +519,31 @@ class OpenSearchManager:
         search_schema_result = {}
         try:
             # 전체 테이블 서치
-            all_tables = self._search_all_tables()
-            search_schema_result['tables'] = all_tables
+            search_schema_result['tables'] = self._search_all_tables()
 
-            # 하이브리드 서치
-            lexical_results = self._process_schema_result(self._lexical_schema_search(query, top_k), search_method='lexical_search')
-            semantic_results = self._process_schema_result(self._semantic_schema_search(query), search_method='semantic_search')
+            # lexical search와 semantic search를 순차적으로 실행
+            lexical_results = self._process_schema_result(
+                self._lexical_schema_search(query, top_k),
+                search_method='lexical_search'
+            )
+            semantic_results = self._process_schema_result(
+                self._semantic_schema_search(query),
+                search_method='semantic_search'
+            )
+
+            # 결과가 없는 경우 빈 리스트 처리
+            lexical_results = lexical_results or []
+            semantic_results = semantic_results or []
 
             # 정규화 함수
             def _normalize_score_in_array(search_results, weight):
+                if not search_results:
+                    return search_results
+                    
                 min_score = min(search_result['score'] for search_result in search_results)
                 max_score = max(search_result['score'] for search_result in search_results)
                 score_range = max_score - min_score
+                
                 if score_range != 0:
                     for search_result in search_results:
                         search_result['normalized_score'] = ((search_result['score'] - min_score) / score_range) * weight
@@ -617,18 +622,18 @@ class OpenSearchManager:
         """Search sample queries"""
         try:
             lexical_result = self._process_query_results(self._lexical_query_search(query, top_k),
-                                                         search_method='lexical_search')
+                                                       search_method='lexical_search')
             semantic_result = self._process_query_results(self._semantic_query_search(query),
-                                                          search_method='semantic_search')
+                                                        search_method='semantic_search')
 
             def _normalize_score_in_array(search_result, weight):
                 if not search_result:
                     return search_result
-
+                    
                 min_score = min(sq['score'] for sq in search_result)
                 max_score = max(sq['score'] for sq in search_result)
                 score_range = max_score - min_score
-
+                
                 if score_range != 0:
                     for sq in search_result:
                         sq['normalized_score'] = ((sq['score'] - min_score) / score_range) * weight
@@ -668,28 +673,26 @@ class OpenSearchManager:
 
             return temp_combined_results[:40]
 
-
         except Exception as e:
             st.error(f"쿼리 검색 중 오류가 발생했습니다: {str(e)}")
             return []
 
     def _search_user_feedback_queries(self, query: str, top_k: int = 10, semantic_weight: float = 0.7) -> List[Dict]:
         """Search user feedback queries"""
-
         try:
             lexical_result = self._process_user_feedback_query_results(self._lexical_user_feedback_query_search(query, top_k),
-                                                                       search_method='lexical_search')
+                                                                     search_method='lexical_search')
             semantic_result = self._process_user_feedback_query_results(self._semantic_user_feedback_query_search(query),
-                                                                        search_method='semantic_search')
+                                                                      search_method='semantic_search')
 
             def _normalize_score_in_array(search_result, weight):
                 if not search_result:
                     return search_result
-
+                    
                 min_score = min(sq['score'] for sq in search_result)
                 max_score = max(sq['score'] for sq in search_result)
                 score_range = max_score - min_score
-
+                
                 if score_range != 0:
                     for sq in search_result:
                         sq['normalized_score'] = ((sq['score'] - min_score) / score_range) * weight
@@ -722,7 +725,6 @@ class OpenSearchManager:
             combined_results = list(combined_result_map.values())
             combined_results.sort(key=lambda x: x['hybrid_score'], reverse=True)
             return combined_results[:40]
-
 
         except Exception as e:
             st.error(f"사용자 피드백 쿼리 검색 중 오류가 발생했습니다: {str(e)}")

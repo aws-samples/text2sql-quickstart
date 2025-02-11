@@ -2,7 +2,6 @@ from typing import Dict, Any, List
 from langchain_core.messages import AIMessage
 import streamlit as st
 
-
 class SearchValidator:
     def __init__(self, llm):
         self.llm = llm
@@ -29,7 +28,7 @@ class SearchValidator:
 
             # 관련성 검사
             validation = self.check_relevance(search_results, intent)
-
+            
             # 사용자 피드백 기반 검증
             if user_feedback:
                 feedback_validation = self._validate_with_feedback(user_feedback, intent)
@@ -53,7 +52,6 @@ class SearchValidator:
                     "feedback": "관련된 스키마를 찾았습니다.",
                     "suggested_actions": [],
                     "relevant_schemas": validation["relevant_schemas"]
-
                 }
 
             return {
@@ -104,7 +102,7 @@ class SearchValidator:
             for table in related_tables:
                 # hybrid_score 확인
                 hybrid_score = table.get('hybrid_score', 0)
-
+                
                 # hybrid_score 기준 완화 (0.6 이상)
                 if hybrid_score >= 0.6:
                     response["is_relevant"] = True
@@ -114,7 +112,7 @@ class SearchValidator:
 
                 matches = 0
                 total_keywords = len(intent_keywords)
-
+                
                 # 테이블명과 설명 매칭
                 table_name = table.get('table_name', '').lower()
                 table_desc = table.get('description', '').lower()
@@ -127,12 +125,12 @@ class SearchValidator:
                     if keyword in table_name:
                         matches += 1
                         continue
-
+                    
                     # 설명 매칭
                     if keyword in table_desc:
                         matches += 0.8  # 설명 매칭은 0.8점
                         continue
-
+                    
                     # 컬럼 매칭
                     for column in related_columns:
                         column_name = column.get('name', '').lower()
@@ -213,7 +211,7 @@ class SearchValidator:
             for feedback in feedback_queries:
                 # hybrid_score 확인
                 hybrid_score = feedback.get('hybrid_score', 0)
-
+                
                 # hybrid_score가 높은 경우 (0.8 이상) 바로 관련성 있다고 판단
                 if hybrid_score >= 0.8:
                     result["is_valid"] = True
@@ -261,7 +259,7 @@ class SearchValidator:
 
             if result["is_valid"]:
                 result["feedback"] = "유사한 성공적인 쿼리 이력이 있습니다."
-
+            
             return result
 
         except Exception as e:

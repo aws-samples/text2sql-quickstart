@@ -8,7 +8,6 @@ import time
 import yaml
 from typing import Dict, List, Optional
 from pathlib import Path
-
 import streamlit as st
 from config import AWS_REGION, BEDROCK_MODELS
 from langchain_aws import BedrockLLM
@@ -174,6 +173,7 @@ class SchemaAugmenter:
                 if not column_analysis.get('error'):
                     augmented_info["columns"][i]["augmented_column_info"] = column_analysis
 
+
             st.success("✅ 스키마 증강이 완료되었습니다!")
             return augmented_info
 
@@ -254,7 +254,6 @@ class SchemaAugmenter:
                     st.warning("생성된 쿼리가 올바른 형식이 아닙니다.")
             elif isinstance(response, dict) and 'error' in response:
                 st.error(f"쿼리 생성 중 오류가 발생했습니다: {response['error']}")
-
             else:
                 st.warning("쿼리 생성 결과가 올바른 형식이 아닙니다.")
 

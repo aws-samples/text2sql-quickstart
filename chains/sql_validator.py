@@ -4,9 +4,8 @@ from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.language_models import BaseLanguageModel
 from langchain_aws import BedrockLLM
 
-
 class SQLValidator:
-    def __init__(self, llm: Optional[BedrockLLM] = None, redshift_manager=None):
+    def __init__(self, llm: Optional[BedrockLLM] = None, redshift_manager = None):
         """SQL 검증기 초기화"""
         self.llm = llm
         self.redshift_manager = redshift_manager
@@ -56,7 +55,7 @@ class SQLValidator:
                 "suggestions": [],
                 "timestamp": datetime.now().isoformat()
             }
-
+            
             # 결과 캐시에 저장
             self.validation_cache[cache_key] = result
             return result

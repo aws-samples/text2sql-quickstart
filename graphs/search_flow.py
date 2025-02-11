@@ -11,7 +11,6 @@ from utils.response_handler import ResponseHandler
 from typing import Dict, Any
 from chains.feedback_handler import FeedbackHandler
 
-
 class TextToSQLFlow:
     def __init__(
             self,
@@ -94,9 +93,9 @@ class TextToSQLFlow:
             try:
                 # 노드 실행 시간 측정 시작
                 node_operation_id = self.performance_monitor.start_operation("analyze_intent")
-
+                
                 analysis_result = self.intent_analyzer.analyze_and_validate(state["query"])
-
+                
                 # 노드 실행 시간 측정 종료
                 self.performance_monitor.end_operation(node_operation_id)
 
@@ -141,13 +140,13 @@ class TextToSQLFlow:
             try:
                 # 노드 실행 시간 측정 시작
                 node_operation_id = self.performance_monitor.start_operation("search_schema")
-
+                
                 # OpenSearch 검색 수행
                 search_results = self.opensearch_manager.integrated_search(
                     query=state["query"],
                     top_k=5
                 ) or {}
-
+                
                 # 검색 결과가 비어있는 경우
                 if not search_results or not search_results.get('schema_info'):
                     return {
@@ -182,14 +181,13 @@ class TextToSQLFlow:
 
                 # 노드 실행 시간 측정 종료
                 self.performance_monitor.end_operation(node_operation_id)
-
+                
                 return {
                     **state,
                     "current_step": "generate_sql",
                     "search_results": search_results,
                     "validation_results": validation,
                     "schema_validated": True
-
                 }
 
             except Exception as e:
@@ -210,7 +208,7 @@ class TextToSQLFlow:
             """SQL 생성 노드"""
             # 노드 실행 시간 측정 시작
             node_operation_id = self.performance_monitor.start_operation("generate_sql")
-
+            
             # 검색 결과와 검증 확인
             if not state.get("search_results") or not state.get("validation_results", {}).get("is_valid"):
                 return {
@@ -218,7 +216,6 @@ class TextToSQLFlow:
                     "current_step": "complete",
                     "sql": "",
                     "feedback": "유효한 스키마 정보가 없습니다."
-
                 }
 
             sql_response = self.sql_generator.generate_sql(
@@ -236,7 +233,7 @@ class TextToSQLFlow:
 
             # 노드 실행 시간 측정 종료
             self.performance_monitor.end_operation(node_operation_id)
-
+            
             return {
                 **state,
                 "current_step": "validate_sql",
@@ -248,7 +245,7 @@ class TextToSQLFlow:
             """SQL 검증 노드"""
             # 노드 실행 시간 측정 시작
             node_operation_id = self.performance_monitor.start_operation("validate_sql")
-
+            
             if not state.get("sql"):
                 return {
                     **state,
@@ -276,7 +273,7 @@ class TextToSQLFlow:
 
             # 노드 실행 시간 측정 종료
             self.performance_monitor.end_operation(node_operation_id)
-
+            
             return {
                 **state,
                 "current_step": "execute_sql",
@@ -288,7 +285,7 @@ class TextToSQLFlow:
             """SQL 실행 노드"""
             # 노드 실행 시간 측정 시작
             node_operation_id = self.performance_monitor.start_operation("execute_sql")
-
+            
             # SQL이 비어있는 경우 실행하지 않음
             if not state.get("sql"):
                 return {
@@ -302,7 +299,7 @@ class TextToSQLFlow:
 
             # 노드 실행 시간 측정 종료
             self.performance_monitor.end_operation(node_operation_id)
-
+            
             return {
                 **state,
                 "current_step": "handle_feedback",
@@ -314,7 +311,7 @@ class TextToSQLFlow:
             """피드백 처리 노드"""
             # 노드 실행 시간 측정 시작
             node_operation_id = self.performance_monitor.start_operation("handle_feedback")
-
+            
             if state.get("feedback_requested", False):
                 feedback_result = self.feedback_handler.save_feedback(state)
                 return {
@@ -324,7 +321,7 @@ class TextToSQLFlow:
                 }
             # 노드 실행 시간 측정 종료
             self.performance_monitor.end_operation(node_operation_id)
-
+            
             return {
                 **state,
                 "current_step": "complete",
@@ -354,7 +351,7 @@ class TextToSQLFlow:
 
                 # 각 노드별 실행 시간 가져오기
                 node_metrics = self.performance_monitor.get_operation_metrics()
-
+                
                 updated_metadata["performance_metrics"].update({
                     "total_execution_time": execution_time,
                     "has_results": bool(state.get("query_results")),
@@ -376,11 +373,9 @@ class TextToSQLFlow:
                     "current_step": "completed",  # 상태를 'completed'로 변경
                     "metadata": updated_metadata,
                     # 선택적으로 불필요한 중간 데이터 정리
-                    "messages": [msg for msg in state.get("messages", []) if
-                                 isinstance(msg, (HumanMessage, AIMessage))],
+                    "messages": [msg for msg in state.get("messages", []) if isinstance(msg, (HumanMessage, AIMessage))],
                     # 필요한 경우 에러 정보 포함
-                    "error": state.get("validation_results", {}).get("feedback") if not state["validation_results"].get(
-                        "is_valid", True) else None
+                    "error": state.get("validation_results", {}).get("feedback") if not state["validation_results"].get("is_valid", True) else None
                 }
 
             except Exception as e:

@@ -29,12 +29,12 @@ class SQLGenerator:
         self.base_delay = 10  # 기본 대기 시간 (초)
         self.last_trim_time = datetime.now()  # 마지막 trim 시간 기록
         self.system_prompt_initialized = False  # 시스템 프롬프트 초기화 상태
-
+        
         # 프롬프트 로드
         self.prompts = load_prompt('sql', 'generator')
         if not self.prompts:
             raise ValueError("SQL 생성기 프롬프트를 로드할 수 없습니다.")
-
+        
         # 초기 시스템 프롬프트 설정
         self._initialize_system_prompt()
 

@@ -2,6 +2,7 @@ import boto3
 import redshift_connector
 from botocore.exceptions import ClientError
 import time
+
 from config import REDSHIFT_CONFIG, AWS_REGION, OPENSEARCH_CONFIG
 import streamlit as st
 
@@ -180,6 +181,7 @@ class PackageManager:
         sts_client = boto3.client('sts')
         # 현재 AWS 계정 ID를 가져옵니다.
         return sts_client.get_caller_identity().get('Account')
+
     # 버킷 생성
     def _create_bucket(self, bucket_name: str):
         try:
@@ -229,7 +231,6 @@ class PackageManager:
             st.info(f"도메인 {OPENSEARCH_CONFIG.get('domain')}에 텍스트 사전 연결 해제 중...")
             while True:
                 associating_package = self.describe_package(package_id=package_id, domain_name=domain_name)
-
                 # 도메인과의 연결 상태 확인
                 if 'domain_package_status' not in associating_package:
                     st.success("텍스트 사전 연결 해제 완료.")
@@ -287,6 +288,7 @@ class PackageManager:
             domain_name = OPENSEARCH_CONFIG.get('domain')
             account_id = self._get_account_id()
             s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
+
             # 패키지 도메인에서 연결 해제
             dissociate_response = self._dessociate_package(package_id=package_id, domain_name=domain_name)
 
@@ -319,6 +321,7 @@ class PackageManager:
     def update_dictionary(self, package_id: str, package_name: str, synonym_file):
         result = {}
         try:
+
             domain_name = OPENSEARCH_CONFIG.get('domain')
             account_id = self._get_account_id()
             s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
@@ -342,6 +345,7 @@ class PackageManager:
                     'ConfigurationRequirement': 'NONE'
                 }
             )
+
             # 패키지 업데이트 여부 확인
             package_available = self.wait_package_available(package_id=package_id, domain_name=domain_name)
             if package_available:
@@ -375,7 +379,6 @@ class PackageManager:
                     result['synonym_file'] = synonym_file
                     result['domain_name'] = domain_name
                     result['package_version'] = package_available['package_version']
-
                     result['package_status'] = package_available['package_status']
                     result['domain_package_status'] = package_associated['domain_package_status']
         except Exception as e:

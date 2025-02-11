@@ -37,43 +37,57 @@ from config import AWS_REGION, BEDROCK_MODELS, OPENSEARCH_CONFIG
 index_name = 'schema_info'
 DEFAULT_TOP_K = 5
 
-def init_session_state():
-    """세션 상태 초기화"""
-    if 'page' not in st.session_state:
-        st.session_state.page = 'upload'
-    if 'redshift_manager' not in st.session_state:
-        st.session_state.redshift_manager = RedshiftManager()
-    if 'opensearch_manager' not in st.session_state:
-        st.session_state.opensearch_manager = OpenSearchManager()
-    if 'schema_augmenter' not in st.session_state:
-        st.session_state.schema_augmenter = SchemaAugmenter()
-    if 'schema_manager' not in st.session_state:
-        st.session_state.schema_manager = SchemaManager()
-    if 'display_manager' not in st.session_state:
-        st.session_state.display_manager = DisplayManager()
-    if 'performance_monitor' not in st.session_state:
-        st.session_state.performance_monitor = PerformanceMonitor()
-    if 'sql_generator' not in st.session_state:
-        from chains.sql_generator import SQLGenerator
-        st.session_state.sql_generator = SQLGenerator()
-    if 'package_manager' not in st.session_state:
-        st.session_state.package_manager = PackageManager()
-    if 'search_flow' not in st.session_state:
-        st.session_state.search_flow = TextToSQLFlow(
-            opensearch_manager=st.session_state.opensearch_manager,
-            sql_generator=st.session_state.sql_generator,
-            redshift_manager=st.session_state.redshift_manager,
-            performance_monitor=st.session_state.performance_monitor,
-            package_manager=st.session_state.package_manager,
-            llm=BedrockLLM(
+# 공유 리소스 초기화
+def init_shared_resources():
+    if 'shared_resources' not in st.session_state:
+        st.session_state.shared_resources = {
+            'bedrock_client': boto3.client('bedrock-runtime', region_name=AWS_REGION),
+            'bedrock_llm': BedrockLLM(
                 model_id=BEDROCK_MODELS['cross_claude'],
                 client=boto3.client('bedrock-runtime', region_name=AWS_REGION)
+            ),
+            'opensearch_manager': OpenSearchManager()
+        }
+
+def init_session_state():
+    if 'initialized' not in st.session_state:
+        st.session_state.initialized = False
+
+    if not st.session_state.initialized:
+        # 공유 리소스 초기화
+        init_shared_resources()
+        
+        if 'page' not in st.session_state:
+            st.session_state.page = 'upload'
+        if 'redshift_manager' not in st.session_state:
+            st.session_state.redshift_manager = RedshiftManager()
+        if 'schema_augmenter' not in st.session_state:
+            st.session_state.schema_augmenter = SchemaAugmenter()
+        if 'schema_manager' not in st.session_state:
+            st.session_state.schema_manager = SchemaManager()
+        if 'display_manager' not in st.session_state:
+            st.session_state.display_manager = DisplayManager()
+        if 'performance_monitor' not in st.session_state:
+            st.session_state.performance_monitor = PerformanceMonitor()
+        if 'sql_generator' not in st.session_state:
+            from chains.sql_generator import SQLGenerator
+            st.session_state.sql_generator = SQLGenerator()
+        if 'package_manager' not in st.session_state:
+            st.session_state.package_manager = PackageManager()
+        if 'search_flow' not in st.session_state:
+            st.session_state.search_flow = TextToSQLFlow(
+                opensearch_manager=st.session_state.shared_resources['opensearch_manager'],
+                sql_generator=st.session_state.sql_generator,
+                redshift_manager=st.session_state.redshift_manager,
+                performance_monitor=st.session_state.performance_monitor,
+                package_manager=st.session_state.package_manager,
+                llm=st.session_state.shared_resources['bedrock_llm']
             )
-        )
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    if 'data_generator' not in st.session_state:
-        st.session_state.data_generator = DataGenerator()
+        if 'chat_history' not in st.session_state:
+            st.session_state.chat_history = []
+        if 'data_generator' not in st.session_state:
+            st.session_state.data_generator = DataGenerator()
+        st.session_state.initialized = True
 
 def render_sidebar():
     """사이드바 렌더링"""
@@ -84,6 +98,10 @@ def render_sidebar():
         if st.button("Schema Upload", use_container_width=True,
                      help="Upload and manage database schemas"):
             st.session_state.page = 'upload'
+
+        if st.button("Business Glossary", use_container_width=True,
+                     help="Upload and manage business glossary"):
+            st.session_state.page = 'glossary'
 
         if st.button("Generate Test Data", use_container_width=True,
                      help="Generate and load test data into Redshift"):
@@ -120,7 +138,7 @@ def check_system_status():
     """시스템 연결 상태 확인"""
     return {
         "Redshift": st.session_state.redshift_manager.test_connection(),
-        "OpenSearch": st.session_state.opensearch_manager.test_connection()
+        "OpenSearch": st.session_state.shared_resources['opensearch_manager'].test_connection()
     }
 
 def process_schema_file(schema_content: Dict) -> bool:
@@ -164,7 +182,7 @@ def process_schema_file(schema_content: Dict) -> bool:
 
             # 4. OpenSearch 인덱싱 (이미 증강된 데이터 사용)
             status_container.info("🔍 OpenSearch 인덱싱 중...")
-            if not st.session_state.opensearch_manager.index_schema(augmented_schema, version_id):
+            if not st.session_state.shared_resources['opensearch_manager'].index_schema(augmented_schema, version_id):
                 status_container.error("❌ 스키마 인덱싱 실패")
                 return False
 
@@ -218,6 +236,26 @@ def render_upload_page():
             st.subheader("📄 Schema Preview")
             st.session_state.display_manager.display_json(schema_content)
 
+
+        except Exception as e:
+            st.session_state.display_manager.display_error(e, "파일 처리 중 오류가 발생했습니다")
+
+def render_glossary_page():
+    """비즈니스 용어 사전 업로드 페이지 렌더링"""
+    st.header("📚 Business Glossary Upload")
+
+    uploaded_file = st.file_uploader("Upload Business Glossary JSON", type=['json'])
+    if uploaded_file is not None:
+        try:
+            glossary_data = json.load(uploaded_file)
+            st.subheader("📄 Glossary Preview")
+            st.session_state.display_manager.display_json(glossary_data)
+
+            if st.button("Process Glossary"):
+                if st.session_state.shared_resources['opensearch_manager'].index_business_glossary(glossary_data):
+                    st.success("✅ 비즈니스 용어 사전이 성공적으로 처리되었습니다.")
+                else:
+                    st.error("❌ 비즈니스 용어 사전 처리 실패")
 
         except Exception as e:
             st.session_state.display_manager.display_error(e, "파일 처리 중 오류가 발생했습니다")
@@ -276,7 +314,7 @@ def render_augment_page():
                         st.success(f"✅ Additional queries have been generated and saved as version {new_version_id}")
 
                         # OpenSearch 재색인
-                        if st.session_state.opensearch_manager.index_sample_queries(current_schema, new_version_id):
+                        if st.session_state.shared_resources['opensearch_manager'].index_sample_queries(current_schema, new_version_id):
                             st.success("✅ New queries have been indexed in OpenSearch successfully!")
                         else:
                             st.error("Failed to index new queries in OpenSearch")
@@ -387,12 +425,12 @@ def render_clear_indices_page():
     st.header("🗑️ Clear Indices")
 
     st.warning("⚠️ This action will remove all indices from OpenSearch!")
-    st.info("This will clear all schema information and sample queries.")
+    st.info("This will clear all schema information, sample queries, and business glossary data.")
 
     if st.button("Clear All Indices", type="primary", use_container_width=True):
         try:
             with st.spinner("Clearing indices..."):
-                if st.session_state.opensearch_manager.clear_indices():
+                if st.session_state.shared_resources['opensearch_manager'].clear_indices():
                     st.success("✅ All indices have been cleared successfully!")
                     time.sleep(2)
                 else:
@@ -404,6 +442,7 @@ def render_clear_indices_page():
 def process_query(user_query: str, search_flow, performance_monitor) -> Dict[str, Any]:
     """동기적으로 쿼리 처리"""
     workflow_op_id = performance_monitor.start_operation("complete_workflow")
+    print("쿼리 처리 시작")
     result = search_flow.execute(query=user_query)
     performance_monitor.end_operation(workflow_op_id, result)
 
@@ -412,6 +451,13 @@ def process_query(user_query: str, search_flow, performance_monitor) -> Dict[str
             "error": result["error"],
             "metadata": result.get("metadata", {})
         }
+    return result
+
+def process_feedback(user_query: str, sql: str, feedback: str, feedback_flow) -> Dict[str, Any]:
+
+    result = {}
+
+    print('process')
     return result
 
 def render_query_page():
@@ -436,62 +482,65 @@ def render_query_page():
         input_key = f"user_input_{st.session_state.input_key}"
         if input_key in st.session_state and st.session_state[input_key].strip():
             user_input = st.session_state[input_key]
-            st.session_state[input_key] = ""  # 입력 필드 초기화
+            
+            # 채팅 기록에 사용자 입력 추가
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": user_input
+            })
 
-            # 이미 동일한 메시지가 마지막에 있는지 확인
-            if not st.session_state.chat_history or \
-                    st.session_state.chat_history[-1].get("content") != user_input:
-                # 사용자 입력 처리
-                st.session_state.chat_history.append({
-                    "role": "user",
-                    "content": user_input
-                })
+            # 새로운 입력 필드를 위해 키 증가
+            st.session_state.input_key += 1
 
-            # 결과 생성 및 저장
-            with st.spinner("처리 중..."):
-                result = process_query(
-                    user_input,
-                    st.session_state.search_flow,
-                    st.session_state.performance_monitor
-                )
-
-                assistant_message = {
-                    "role": "assistant",
-                    "search_results": result.get("search_results", {}),
-                }
-
-                if not result.get("success") or not result.get("sql"):
-                    feedback_message = (
-                        "죄송합니다. 질문하신 내용과 관련된 데이터를 찾지 못했습니다. 다음과 같이 질문을 수정해보시는 건 어떨까요?\n\n"
-                        "💡 추천 방법:\n"
-                        "1. 더 구체적인 용어 사용하기\n"
-                        "2. 다른 관점에서 질문하기\n"
-                        "3. 사용 가능한 데이터 범위 내에서 질문하기\n\n"
+            # 메시지 처리 중임을 표시
+            with main_container:
+                with st.spinner("처리 중..."):
+                    result = process_query(
+                        user_input,
+                        st.session_state.search_flow,
+                        st.session_state.performance_monitor
                     )
 
-                    if result.get("available_schemas"):
-                        feedback_message += "\n사용 가능한 테이블:\n"
-                        for schema in result["available_schemas"]:
-                            feedback_message += f"- {schema}\n"
+                    assistant_message = {
+                        "role": "assistant",
+                        "search_results": result.get("search_results", {}),
+                    }
 
-                    assistant_message.update({
-                        "feedback": feedback_message,
-                        "type": "error",
-                        "suggested_questions": [
-                            "사용자 상태별 회원 수가 어떻게 되나요?",
-                            "최근 한 달간 가입한 회원 수는?",
-                            "통신사별 회원 분포를 알려주세요"
-                        ]
-                    })
-                else:
-                    assistant_message.update({
-                        "type": "success",
-                        "sql": result.get("sql", ""),
-                        "query_results": result.get("results", [])
-                    })
+                    if not result.get("success") or not result.get("sql"):
+                        feedback_message = (
+                            "죄송합니다. 질문하신 내용과 관련된 데이터를 찾지 못했습니다. 다음과 같이 질문을 수정해보시는 건 어떨까요?\n\n"
+                            "💡 추천 방법:\n"
+                            "1. 더 구체적인 용어 사용하기\n"
+                            "2. 다른 관점에서 질문하기\n"
+                            "3. 사용 가능한 데이터 범위 내에서 질문하기\n\n"
+                        )
 
-                st.session_state.chat_history.append(assistant_message)
-                st.session_state.input_key += 1
+                        if result.get("available_schemas"):
+                            feedback_message += "\n사용 가능한 테이블:\n"
+                            for schema in result["available_schemas"]:
+                                feedback_message += f"- {schema}\n"
+
+                        assistant_message.update({
+                            "feedback": feedback_message,
+                            "type": "error",
+                            "suggested_questions": [
+                                "사용자 상태별 회원 수가 어떻게 되나요?",
+                                "최근 한 달간 가입한 회원 수는?",
+                                "통신사별 회원 분포를 알려주세요"
+                            ]
+                        })
+                    else:
+                        assistant_message.update({
+                            "type": "success",
+                            "sql": result.get("sql", ""),
+                            "query_results": result.get("results", [])
+                        })
+
+                    # 채팅 기록에 응답 추가
+                    st.session_state.chat_history.append(assistant_message)
+
+            # UI 업데이트
+            st.rerun()
 
     # 메인 컨테이너에 채팅 히스토리 표시
     main_container = st.container()
@@ -525,7 +574,6 @@ def render_query_page():
                                 button_key = f"suggest_{msg_idx}_{q_idx}"
                                 if st.button(question, key=button_key):
                                     st.session_state[f"user_input_{st.session_state.input_key}"] = question
-                                    handle_input()
                     else:
                         if "search_results" in message and message["search_results"]:
                             with st.expander("📊 관련 스키마 정보", expanded=False):
@@ -641,8 +689,7 @@ def render_query_page():
                 "질문을 입력하세요",
                 key=f"user_input_{st.session_state.input_key}",
                 placeholder="데이터베이스에 대해 궁금한 점을 자연어로 질문해주세요...",
-                label_visibility="collapsed",
-                on_change=handle_input
+                label_visibility="collapsed"
             )
 
         with col2:
@@ -765,16 +812,22 @@ def render_data_generation_page():
     st.write("테스트용 가상의 데이터를 생성하고 Redshift에 적재할 수 있습니다.")
 
     num_rows = st.number_input("Number of rows to generate", min_value=100, max_value=1000000, value=10000, step=1000)
+    
+    # filename을 세션 상태로 관리
+    if 'generated_filename' not in st.session_state:
+        st.session_state.generated_filename = None
+        
     if st.button("Generate CSV"):
         filename = st.session_state.data_generator.generate_csv(num_rows=num_rows)
         if filename:
+            st.session_state.generated_filename = filename
             st.success(f"✅ CSV 생성 완료: {filename}")
             st.write("생성된 데이터를 Redshift에 적재하려면 아래 버튼을 클릭하세요.")
 
     if st.session_state.data_generator:
         if st.button("Load to Redshift"):
-            if filename is not None:
-                success = st.session_state.data_generator.load_to_redshift(filename)
+            if st.session_state.generated_filename is not None:
+                success = st.session_state.data_generator.load_to_redshift(st.session_state.generated_filename)
                 if success:
                     st.success("✅ 데이터가 성공적으로 Redshift에 적재되었습니다!")
                 else:
@@ -789,11 +842,14 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    init_session_state()
+    if not st.session_state.get("initialized", False):
+        init_session_state()
+
     render_sidebar()
 
     pages = {
         'upload': render_upload_page,
+        'glossary': render_glossary_page,
         'augment': render_augment_page,
         'synonym_dict': render_synonym_dict,
         'clear_indices': render_clear_indices_page,

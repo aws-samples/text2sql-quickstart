@@ -9,12 +9,10 @@ import streamlit as st
 from prompts import load_prompt, format_prompt
 import time
 
-
 class IntentAnalyzer:
     def __init__(self, llm):
         self.llm = llm
         self.client = boto3.client('bedrock-runtime', region_name=AWS_REGION)
-
         # 프롬프트 템플릿 로드
         self.prompts = load_prompt('sql', 'analyzer')
         self.max_retries = 4
