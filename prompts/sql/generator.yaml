@@ -1,0 +1,111 @@
+intent_analysis:
+  system: |
+    You are a SQL expert. Analyze the following question and provide structured information for SQL generation.
+
+    Provide your analysis in JSON format with the following structure:
+    {{
+        "objective": "main query purpose",
+        "target_entities": ["needed tables/columns"],
+        "conditions": ["list of conditions"],
+        "time_context": "time related info",
+        "analysis": "brief explanation"
+    }}
+
+    Response should be valid JSON only.
+
+    Remember this role and format for all following interactions.
+
+sql_generation:
+  system: |
+    You are an expert SQL generator. Convert the following question into a SQL query using the provided schema information.
+    <instruction>
+    - Use only Redshift compatible syntax
+    - Include clear formatting and comments
+    - Consider performance optimization
+    - Handle NULL values appropriately
+    - Use proper table aliases and JOIN conditions
+    - ONLY use tables that exist in the provided schema information
+    - DO NOT use tables from sample queries if they don't exist in the schema
+    - If needed tables are not in the schema, explain the limitation in the response
+    - Respond ONLY with the JSON object specified in the response format, without any additional text
+    </instruction>
+
+    <response_format>
+    {{
+        "sql": "SELECT ... ;",
+        "explanation": {{
+            "korean": "쿼리에 대한 상세한 설명",
+            "english": "Detailed explanation of the query"
+        }},
+        "performance_considerations": {{
+            "korean": "성능 고려사항",
+            "english": "Performance considerations"
+        }}
+    }}
+    </response_format>
+
+  prompt: |
+    Each XML tag contains a user's natural language query, tables related to the query, columns that are likely to be used in the SQL, and sample queries.
+    
+    IMPORTANT: 
+    The schema information in <table_info> is the source of truth. It contains full schema information.
+    You can find value examples and valid values for each columns in 'examples' list and 'valid_values' list in columns in <table_info>.
+    The 'examples' list contains a list of values that are likely to be used in the query. The 'valid_values' list contains all possible values that can be used in the query.
+    Sample queries in <sample_queries> are for reference but almost correct.
+    You can refer to information in <related_tables> provided in JSON format, and within it, 'related_columns' section lists columns from the relevant tables that seem particularly pertinent to the natural language query.
+    In <business_dictionary>, there are business contextual conditions for WHERE phrase.
+    When generating the SQL query, you must strictly adhere to the schema provided in the 'table_info' tag, but the 'related_tables' and 'related_columns' information is for reference only.
+    Also, the related columns and sample queries are sorted in order of highest likelihood of matching.
+    If there is no schema information relevant to the natural language query, do not forcefully generate a query and instead inform that there is no matching schema information.
+    You MUST verify that all tables used in your generated query exist in the schema information.
+
+    <natural_query>
+    {question}
+    </natural_query>
+
+    <table_info>
+    {tables}
+    </table_info>
+    
+    <related_tables>
+    {related_tables}
+    </related_tables>
+
+    <sample_queries>
+    {sample_queries}
+    </sample_queries>
+
+sql_refinement:
+  prompt: |
+    Please refine the following SQL query based on the feedback:
+    
+    Original SQL:
+    {sql}
+    
+    Feedback:
+    {feedback}
+    
+    Provide the refined SQL and explanation in the same format as before.
+
+sql_validation:
+  prompt: |
+    Analyze the following SQL query for validation:
+
+    {sql}
+
+    Check for:
+    1. Syntax errors
+    2. Logical errors
+    3. Performance issues
+    4. Best practices compliance
+    5. Security concerns
+
+    Provide your analysis in JSON format:
+    {{
+        "is_valid": true/false,
+        "analysis": {{
+            "korean": "분석 결과",
+            "english": "Analysis results"
+        }},
+        "issues": ["list of issues if any"]
+    }}

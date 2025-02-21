@@ -1,0 +1,322 @@
+table_analysis:
+  prompt: |
+    As a database expert, analyze the given table metadata and provide comprehensive information for the Text-to-SQL system.
+    All descriptions should be provided in both Korean and English.
+
+    Table Information:
+    {table_info}
+
+    Provide a detailed analysis in the following JSON format:
+    {
+        "table_info": {
+            "name": "table_name",
+            "description": {
+                "korean": "테이블에 대한 상세한 한글 설명",
+                "english": "Detailed table description in English"
+            },
+            "business_context": {
+                "korean": "비즈니스 관점에서의 상세 설명",
+                "english": "Business context description"
+            },
+            "technical_context": {
+                "korean": "기술적 관점에서의 상세 설명",
+                "english": "Technical context description"
+            },
+            "synonyms": {
+                "table_name": {
+                    "korean": ["테이블명 관련 동의어 목록"],
+                    "english": ["Table name related synonyms"]
+                },
+                "business_terms": {
+                    "korean": ["비즈니스 용어 동의어 목록"],
+                    "english": ["Business terms synonyms"]
+                }
+            },
+            "related_terms": {
+                "korean": ["연관 용어 목록"],
+                "english": ["Related terms"]
+            },
+            "common_queries": {
+                "korean": ["자주 사용되는 쿼리 패턴 설명"],
+                "english": ["Common query pattern descriptions"]
+            },
+            "query_patterns": [
+                {
+                    "pattern": {
+                        "korean": "쿼리 패턴 설명",
+                        "english": "Query pattern description"
+                    },
+                    "related_keywords": {
+                        "korean": ["관련 키워드"],
+                        "english": ["Related keywords"]
+                    },
+                    "variations": {
+                        "korean": ["패턴 변형"],
+                        "english": ["Pattern variations"]
+                    }
+                }
+            ]
+        }
+    }
+
+    Requirements:
+    1. Provide all descriptions in both Korean and English
+    2. Include comprehensive business context and technical details
+    3. For technical terms, include both common Korean translations and English terms
+    4. Consider various business scenarios and use cases
+    5. Include domain-specific terminology
+    6. Provide search-optimized keywords in both languages
+    7. For abbreviations or technical terms, include full explanations
+    8. Ensure natural and fluent Korean expressions for business contexts
+    9. Include common industry-standard terms and their Korean equivalents
+
+column_analysis:
+  prompt: |
+    As a database expert, analyze the given column information to enhance Text-to-SQL capabilities.
+    All descriptions should be provided in both Korean and English.
+
+    Column Information:
+    {column_info}
+
+    Provide detailed analysis in the following JSON format:
+    {
+        "name": "column_name",
+        "type": "data_type",
+        "description": {
+            "korean": "컬럼에 대한 상세한 한글 설명",
+            "english": "Detailed column description"
+        },
+        "business_context": {
+            "korean": "비즈니스 관점에서의 상세 설명",
+            "english": "Business context description"
+        },
+        "technical_context": {
+            "korean": "기술적 관점에서의 상세 설명",
+            "english": "Technical context description"
+        },
+        "synonyms": {
+            "column_name": {
+                "korean": ["컬럼명 관련 동의어 목록"],
+                "english": ["Column name related synonyms"]
+            },
+            "value_meanings": {
+                "values": [
+                    {
+                        "value": "실제 값",
+                        "korean": "값의 한글 의미 설명",
+                        "english": "Value meaning in English"
+                    }
+                ],
+                "status_codes": [
+                    {
+                        "code": "상태 코드",
+                        "korean": "상태 코드의 한글 설명",
+                        "english": "Status code description"
+                    }
+                ]
+            },
+            "business_terms": {
+                "korean": ["비즈니스 용어 동의어 목록"],
+                "english": ["Business terms synonyms"]
+            }
+        },
+        "search_patterns": [
+            {
+                "pattern": {
+                    "korean": "검색 패턴 설명",
+                    "english": "Search pattern description"
+                },
+                "related_keywords": {
+                    "korean": ["관련 키워드"],
+                    "english": ["Related keywords"]
+                },
+                "variations": {
+                    "korean": ["패턴 변형"],
+                    "english": ["Pattern variations"]
+                }
+            }
+        ],
+        "common_conditions": [
+            {
+                "condition": {
+                    "korean": "일반적인 조건절 설명",
+                    "english": "Common condition description"
+                },
+                "examples": [
+                    {
+                        "sql": "SQL 조건식",
+                        "korean": "조건식 설명",
+                        "english": "Condition explanation"
+                    }
+                ],
+                "use_cases": {
+                    "korean": ["활용 사례"],
+                    "english": ["Use cases"]
+                }
+            }
+        ],
+        "constraints": {
+            "type": "제약조건 유형",
+            "description": {
+                "korean": "제약조건 설명",
+                "english": "Constraint description"
+            }
+        }
+    }
+
+    Requirements:
+    1. Provide all descriptions in both Korean and English
+    2. For value_meanings, include all possible values and their business meanings
+    3. For status codes, provide clear explanations of each status
+    4. Include common SQL conditions and their business purposes
+    5. Document typical search patterns and variations
+    6. Explain technical constraints in business-friendly terms
+    7. Include domain-specific terminology and common usage
+    8. Consider various query scenarios and use cases
+    9. Provide clear examples for complex conditions
+    10. Include relevant business rules and validations
+
+query_analysis:
+  prompt: |
+    As a database expert, analyze the given query to enhance Text-to-SQL capabilities.
+    All descriptions should be provided in both Korean and English.
+
+    Query Information:
+    {query_info}
+
+    Provide detailed analysis in the following JSON format:
+    {
+        "query": "SQL query",
+        "description": {
+            "korean": "쿼리에 대한 상세한 한글 설명",
+            "english": "Detailed query description"
+        },
+        "business_purpose": {
+            "korean": "비즈니스 목적 설명",
+            "english": "Business purpose description"
+        },
+        "technical_details": {
+            "korean": "기술적 상세 설명",
+            "english": "Technical details"
+        },
+        "natural_language_variations": {
+            "korean": [
+                "자연어 질문 변형 1",
+                "자연어 질문 변형 2"
+            ],
+            "english": [
+                "Natural language variation 1",
+                "Natural language variation 2"
+            ]
+        },
+        "keyword_variations": {
+            "terms": [
+                {
+                    "base_term": {
+                        "korean": "기본 용어",
+                        "english": "Base term"
+                    },
+                    "variations": {
+                        "korean": ["용어 변형들"],
+                        "english": ["Term variations"]
+                    }
+                }
+            ]
+        },
+        "related_queries": [
+            {
+                "question": {
+                    "korean": "연관 질문",
+                    "english": "Related question"
+                },
+                "variations": {
+                    "korean": ["질문 변형"],
+                    "english": ["Question variations"]
+                },
+                "sql": "Related SQL query"
+            }
+        ],
+        "performance_considerations": {
+            "korean": "성능 고려사항 설명",
+            "english": "Performance considerations"
+        }
+    }
+
+    Requirements:
+    1. Provide all descriptions in both Korean and English
+    2. Generate various natural language questions for the same query
+    3. Include business context and technical explanations
+    4. Consider different ways users might ask for the same information
+    5. Include common variations and alternative expressions
+    6. Document performance considerations and best practices
+    7. Provide related queries that users might also be interested in
+    8. Include domain-specific terminology and common usage
+    9. Consider various business scenarios and use cases
+    10. Ensure natural and fluent expressions in both languages
+
+glossary_analysis:
+  prompt: |
+    Analyze the given business term for comprehensive documentation.
+
+    Term Information:
+    {term_info}
+
+    Provide detailed analysis in the following JSON format:
+    {
+        "word": "용어",
+        "english": "영문 용어",
+        "abbreviation": "약어",
+        "column_name": "관련 컬럼명",
+        "table_name": "관련 테이블명",
+        "schema_name": "스키마명",
+        "description": "상세 설명",
+        "examples": ["용례", "사용 예시"],
+        "synonyms": ["동의어 목록"],
+        "related_terms": ["연관 용어 목록"]
+    }
+
+    Requirements:
+    1. Provide clear and concise descriptions
+    2. Include all relevant technical and business contexts
+    3. List comprehensive examples and use cases
+    4. Document all possible synonyms and related terms
+    5. Ensure accuracy of technical relationships
+
+additional_queries:
+  prompt: |
+    As a SQL expert, generate {num_queries} new, unique sample queries for the following table that are not duplicates of existing ones.
+
+    Table Information:
+    {table_info}
+
+    Existing Queries:
+    {existing_queries}
+
+    Generate the response in the following JSON format:
+    [
+        {
+            "natural_language": "자연어 질문 (한글)",
+            "sql": "SQL 쿼리",
+            "description": {
+                "korean": "쿼리 설명",
+                "english": "Query description"
+            },
+            "business_purpose": {
+                "korean": "비즈니스 목적",
+                "english": "Business purpose"
+            }
+        },
+        ...
+    ]
+
+    Requirements:
+    1. Ensure all queries are unique and not duplicates of existing ones
+    2. Provide a mix of simple and complex queries
+    3. Cover various business scenarios and use cases
+    4. Include different SQL operations (SELECT, JOIN, GROUP BY, etc.)
+    5. Natural language questions should be in Korean
+    6. Include clear descriptions and business purposes
+    7. Ensure queries follow Redshift best practices
+    8. Consider table relationships and constraints
+    9. Include appropriate WHERE clauses and conditions
+    10. Add comments explaining complex logic

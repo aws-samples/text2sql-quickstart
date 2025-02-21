@@ -1,0 +1,111 @@
+{
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 2,
+        "index": {
+            "knn": true
+        },
+        "analysis": {
+            "analyzer": {
+                "korean": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase"]
+                },
+                "korean_search_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "nori_tokenizer",
+                    "filter": ["nori_readingform", "lowercase", "synonym_filter"]
+                }
+            },
+            "filter": {
+                "synonym_filter": {
+                    "type": "synonym",
+                    "synonyms_path": "analyzers/F224293479",
+                    "updateable": true
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "query": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+            "description": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                    "english": {"type": "text"}
+                }
+            },
+            "business_purpose": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                    "english": {"type": "text"}
+                }
+            },
+            "technical_details": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                    "english": {"type": "text"}
+                }
+            },
+            "natural_language_variations": {
+                "type": "object",
+                "properties": {
+                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                    "english": {"type": "text"}
+                }
+            },
+            "keyword_variations": {
+                "type": "nested",
+                "properties": {
+                    "terms": {
+                        "type": "nested",
+                        "properties": {
+                            "base_term": {
+                                "type": "object",
+                                "properties": {
+                                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                                    "english": {"type": "text"}
+                                }
+                            },
+                            "variations": {
+                                "type": "object",
+                                "properties": {
+                                    "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                                    "english": {"type": "text"}
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "related_queries": {
+                "type": "nested",
+                "properties": {
+                    "question": {
+                        "type": "object",
+                        "properties": {
+                            "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                            "english": {"type": "text"}
+                        }
+                    },
+                    "variations": {
+                        "type": "object",
+                        "properties": {
+                            "korean": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+                            "english": {"type": "text"}
+                        }
+                    },
+                    "sql": {"type": "keyword"}
+                }
+            },
+            "search_text": {"type": "text", "analyzer": "korean", "search_analyzer": "korean_search_analyzer"},
+            "embedding": {"type": "knn_vector", "dimension": 1024},
+            "version_id": {"type": "keyword"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
