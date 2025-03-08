@@ -1,0 +1,252 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Redshift, OpenSearch, Bedrock을 위한 VPC 및 리소스 생성 CloudFormation 템플릿'
+
+Parameters:
+  ClusterIdentifier:
+    Type: String
+    Default: my-redshift-cluster
+    Description: Redshift 클러스터 식별자
+  DatabaseName:
+    Type: String
+    Default: dev
+    Description: Redshift 데이터베이스 이름
+  MasterUsername:
+    Type: String
+    Default: admin
+    Description: Redshift 마스터 사용자 이름
+  MasterUserPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Redshift 마스터 사용자 비밀번호
+  NodeType:
+    Type: String
+    Default: dc2.large
+    AllowedValues: [dc2.large, dc2.8xlarge, ra3.xlplus, ra3.4xlarge, ra3.16xlarge]
+    Description: Redshift 노드 타입
+  NumberOfNodes:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 99
+    Description: Redshift 노드 수
+  OpenSearchDomainName:
+    Type: String
+    Default: text2sql-opensearch
+    Description: OpenSearch 도메인 이름
+  OpenSearchInstanceType:
+    Type: String
+    Default: t3.small.search
+    AllowedValues: [t3.small.search, t3.medium.search, r6g.large.search]
+    Description: OpenSearch 인스턴스 타입
+
+Conditions:
+  IsMultiNode: !Not [!Equals [!Ref NumberOfNodes, 1]]
+
+Resources:
+  # VPC 및 네트워크 설정
+  RedshiftVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: [{Key: Name, Value: Text2SQL-VPC}]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties: {Tags: [{Key: Name, Value: Text2SQL-IGW}]}
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.0/26
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags: [{Key: Name, Value: Text2SQL-Public-Subnet}]
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.64/26
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags: [{Key: Name, Value: Text2SQL-Private-Subnet-1}]
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.128/26
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags: [{Key: Name, Value: Text2SQL-Private-Subnet-2}]
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties: {Domain: vpc}
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags: [{Key: Name, Value: Text2SQL-NAT}]
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      Tags: [{Key: Name, Value: Text2SQL-Public-RT}]
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      Tags: [{Key: Name, Value: Text2SQL-Private-RT}]
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # Redshift 설정
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: Subnet group for Redshift cluster
+      SubnetIds: [!Ref PrivateSubnet1, !Ref PrivateSubnet2]
+
+  RedshiftSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Redshift cluster
+      VpcId: !Ref RedshiftVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5439
+          ToPort: 5439
+          CidrIp: 10.0.0.0/24
+
+  RedshiftCluster:
+    Type: AWS::Redshift::Cluster
+    Properties:
+      ClusterIdentifier: !Ref ClusterIdentifier
+      DBName: !Ref DatabaseName
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      NodeType: !Ref NodeType
+      NumberOfNodes: !Ref NumberOfNodes
+      ClusterType: !If [IsMultiNode, 'multi-node', 'single-node']
+      ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
+      VpcSecurityGroupIds: [!Ref RedshiftSecurityGroup]
+      PubliclyAccessible: false
+      Port: 5439
+
+  # OpenSearch 설정
+  OpenSearchSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for OpenSearch domain
+      VpcId: !Ref RedshiftVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/24
+
+  OpenSearchDomain:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      DomainName: !Ref OpenSearchDomainName
+      EngineVersion: 'OpenSearch_2.11'
+      ClusterConfig:
+        InstanceType: !Ref OpenSearchInstanceType
+        InstanceCount: 1
+        ZoneAwarenessEnabled: false
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+        VolumeType: gp3
+      VPCOptions:
+        SubnetIds: [!Ref PrivateSubnet1]
+        SecurityGroupIds: [!Ref OpenSearchSecurityGroup]
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: '*'
+            Action: 'es:*'
+            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${OpenSearchDomainName}/*'
+      AdvancedOptions:
+        rest.action.multi.allow_explicit_index: 'true'
+
+  # Bedrock 관련 IAM 역할 (Bedrock은 직접 프로비저닝되지 않으므로 접근 권한 부여)
+  BedrockAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 'bedrock.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: BedrockFullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'bedrock:*'
+                Resource: '*'
+
+Outputs:
+  VpcId:
+    Description: VPC ID
+    Value: !Ref RedshiftVPC
+  RedshiftClusterEndpoint:
+    Description: Redshift Cluster Endpoint
+    Value: !Sub "${RedshiftCluster.Endpoint.Address}:${RedshiftCluster.Endpoint.Port}"
+  OpenSearchDomainEndpoint:
+    Description: OpenSearch Domain Endpoint
+    Value: !GetAtt OpenSearchDomain.DomainEndpoint
+  BedrockRoleArn:
+    Description: IAM Role ARN for Bedrock Access
+    Value: !GetAtt BedrockAccessRole.Arn
