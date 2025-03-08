@@ -31,8 +31,11 @@ MasterUserPassword는 최소 8자 이상, 대문자/소문자/숫자를 포함�
 ```bash
 aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0].Outputs"
 ```
-* RedshiftClusterEndpoint: Redshift 연결 정보.
-* OpenSearchDomainEndpoint: OpenSearch 엔드포인트.
+* RedshiftClusterEndpoint: Redshift 연결 엔드포인트 (예: my-redshift-cluster.xxx.ap-northeast-2.redshift.amazonaws.com:5439).
+* RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: dev).
+* RedshiftUsername: Redshift 마스터 사용자 이름 (예: admin).
+* OpenSearchDomainEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
+* OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
 * BedrockRoleArn: Bedrock API 호출용 IAM 역할 ARN.
 
 환경 변수 설정:
@@ -48,9 +51,12 @@ REDSHIFT_USERNAME=admin
 REDSHIFT_PASSWORD=YourPass123
 ```
 
+* 주의:
+  * REDSHIFT_HOST와 OPENSEARCH_HOST는 포트를 제외한 호스트만 입력. 포트는 기본값(5439, 443)으로 설정됨.
+  * 비밀번호는 출력값에 없으므로 배포 시 입력한 값을 수동으로 기록할 것.
+
 #### 2. Bedrock 파운데이션 모델 활성화
- - Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다.
- - 다음 단계를 따라 필요한 모델을 활성화 하세요.
+Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다음 단계를 따라 필요한 모델을 활성화 하세요.
 * AWS 콘솔에서 모델 활성화:
 1. AWS Management Console에 로그인.
 2. Bedrock 서비스로 이동 → "Model access" 선택.
@@ -60,7 +66,6 @@ REDSHIFT_PASSWORD=YourPass123
     * APAC Anthropic Claude 3.5 Sonnet (apac.anthropic.claude-3-5-sonnet-20240620-v1:0)
 4. 각 모델 옆의 "Enable" 버튼을 클릭.
 5. 승인 후(즉시 또는 몇 분 소요) 모델 사용 가능.
-
 
 ### Other preparations
 
