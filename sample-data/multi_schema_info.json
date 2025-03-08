@@ -1,0 +1,75 @@
+{
+  "database_schema": {
+    "name": "general_system",
+    "tables": [
+      {
+        "table_name": "users",
+        "description": "사용자 관련 정보를 담고 있는 기본 테이블",
+        "columns": [
+          {"name": "user_id", "type": "VARCHAR", "description": "사용자 고유 식별자", "examples": ["1001", "1002"]},
+          {"name": "account_id", "type": "VARCHAR", "description": "사용자의 계정 식별자", "examples": ["A001", "A002"]},
+          {"name": "last_login_at", "type": "TIMESTAMP", "description": "마지막 로그인 날짜 및 시간", "examples": ["2024-11-01T10:00:00", "2024-11-02T15:30:00"]},
+          {"name": "account_status", "type": "VARCHAR", "description": "계정 상태", "valid_values": ["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]},
+          {"name": "user_type", "type": "VARCHAR", "description": "사용자 유형", "valid_values": ["REGULAR", "GUEST"]},
+          {"name": "password_status", "type": "VARCHAR", "description": "비밀번호 상태", "valid_values": ["SET", "UNSET", "EXPIRED"]},
+          {"name": "created_at", "type": "TIMESTAMP", "description": "계정 생성 날짜 및 시간", "examples": ["2023-01-01T09:00:00", "2023-02-01T12:00:00"]},
+          {"name": "updated_at", "type": "TIMESTAMP", "description": "계정 정보 마지막 갱신 날짜 및 시간", "examples": ["2024-11-01T10:05:00", "2024-11-02T15:35:00"]},
+          {"name": "auth_method", "type": "VARCHAR", "description": "인증 방법", "valid_values": ["EMAIL", "PHONE", "CARD"]},
+          {"name": "auth_status", "type": "VARCHAR", "description": "인증 상태", "valid_values": ["VERIFIED", "UNVERIFIED", "EXPIRED"]},
+          {"name": "birth_year", "type": "VARCHAR", "description": "출생 연도 (YYYY 형식)", "examples": ["1990", "1985"]},
+          {"name": "gender", "type": "VARCHAR", "description": "성별", "valid_values": ["MALE", "FEMALE", "OTHER"]},
+          {"name": "is_non_resident", "type": "BOOLEAN", "description": "거주자 여부 (0: 거주자, 1: 비거주자)", "valid_values": ["0", "1"]},
+          {"name": "occupation", "type": "VARCHAR", "description": "직업 유형", "valid_values": ["EMPLOYEE", "SELF_EMPLOYED", "STUDENT", "RETIRED", "OTHER"]},
+          {"name": "device_type", "type": "VARCHAR", "description": "사용 디바이스 유형", "valid_values": ["ANDROID", "IOS", "WEB"]},
+          {"name": "app_version", "type": "VARCHAR", "description": "애플리케이션 버전", "examples": ["1.0.0", "2.1.3"]}
+        ]
+      },
+      {
+        "table_name": "transactions",
+        "description": "금융 거래 정보를 담고 있는 기본 테이블",
+        "columns": [
+          {"name": "transaction_id", "type": "VARCHAR", "description": "거래 고유 식별자", "examples": ["T001", "T002"]},
+          {"name": "user_id", "type": "VARCHAR", "description": "사용자 고유 식별자 (users 테이블 참조)", "examples": ["1001", "1002"]},
+          {"name": "amount", "type": "BIGINT", "description": "거래 금액", "examples": [5000, 10000]},
+          {"name": "transaction_type", "type": "VARCHAR", "description": "거래 유형", "valid_values": ["DEPOSIT", "WITHDRAWAL", "TRANSFER", "PAYMENT", "REFUND", "FEE"]},
+          {"name": "status", "type": "VARCHAR", "description": "거래 상태", "valid_values": ["PENDING", "COMPLETED", "FAILED", "CANCELLED"]},
+          {"name": "created_at", "type": "TIMESTAMP", "description": "거래 생성 날짜 및 시간", "examples": ["2024-11-01T10:00:00", "2024-11-02T15:30:00"]},
+          {"name": "requested_at", "type": "TIMESTAMP", "description": "거래 요청 날짜 및 시간", "examples": ["2024-11-01T09:55:00", "2024-11-02T15:25:00"]},
+          {"name": "completed_at", "type": "TIMESTAMP", "description": "거래 완료 날짜 및 시간", "examples": ["2024-11-01T10:05:00", "2024-11-02T15:35:00"]},
+          {"name": "external_id", "type": "VARCHAR", "description": "외부 시스템과의 거래 식별자", "examples": ["EXT123", "EXT456"]},
+          {"name": "source_service", "type": "VARCHAR", "description": "거래 요청 출처 서비스", "valid_values": ["APP", "WEB", "BANK", "AGENT", "SYSTEM"]},
+          {"name": "account_id", "type": "VARCHAR", "description": "연결된 계좌 식별자", "examples": ["ACC001", "ACC002"]},
+          {"name": "memo", "type": "VARCHAR", "description": "거래 메모", "examples": ["Monthly subscription", "Refund for order #123"]},
+          {"name": "parent_transaction_id", "type": "VARCHAR", "description": "상위 거래 ID (예: 취소/연관 거래)", "examples": ["T000", null]},
+          {"name": "channel_id", "type": "VARCHAR", "description": "거래가 시작된 채널 ID (예: 채팅, 결제 링크)", "examples": ["CH001", "CH002"]},
+          {"name": "destination_account_id", "type": "VARCHAR", "description": "목적 계좌 식별자 (TRANSFER 경우)", "examples": ["ACC003", "ACC004"]},
+          {"name": "fee_amount", "type": "BIGINT", "description": "거래 수수료 금액", "examples": [100, 200]},
+          {"name": "currency", "type": "VARCHAR", "description": "거래 통화", "valid_values": ["USD", "EUR", "KRW"]},
+          {"name": "category", "type": "VARCHAR", "description": "거래 카테고리", "valid_values": ["PURCHASE", "TRANSFER", "BILL", "REFUND", "OTHER"]},
+          {"name": "is_recurring", "type": "BOOLEAN", "description": "정기 거래 여부", "valid_values": [true, false]},
+          {"name": "priority", "type": "VARCHAR", "description": "거래 우선순위", "valid_values": ["LOW", "MEDIUM", "HIGH"]}
+        ]
+      }
+    ],
+    "sample_queries": [
+      {"description": "비밀번호 상태별 사용자 수 집계", "sql": "SELECT password_status, COUNT(*) FROM general_system.users GROUP BY password_status;"},
+      {"description": "생성 연도별 정회원 수", "sql": "SELECT EXTRACT(YEAR FROM created_at) AS creation_year, COUNT(*) AS regular_user_count FROM general_system.users WHERE account_status NOT IN ('DELETED', 'SUSPENDED') AND user_type = 'REGULAR' GROUP BY EXTRACT(YEAR FROM created_at) ORDER BY creation_year;"},
+      {"description": "인증 상태 및 유형별 정회원 수", "sql": "SELECT auth_status, auth_method, COUNT(*) AS user_count FROM general_system.users WHERE auth_method IS NOT NULL AND account_status NOT IN ('DELETED', 'SUSPENDED') AND user_type = 'REGULAR' GROUP BY auth_status, auth_method ORDER BY user_count DESC;"},
+      {"description": "정회원 중에서 비거주자 비율 분석", "sql": "SELECT is_non_resident, COUNT(*) AS user_count, ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) AS percentage FROM general_system.users WHERE user_type = 'REGULAR' AND account_status NOT IN ('DELETED', 'SUSPENDED') GROUP BY is_non_resident;"},
+      {"description": "앱 버전별 사용자 분포", "sql": "SELECT app_version, COUNT(*) AS user_count FROM general_system.users WHERE app_version IS NOT NULL GROUP BY app_version ORDER BY user_count DESC;"},
+      {"description": "디바이스 유형별 정회원 수", "sql": "SELECT device_type, COUNT(*) AS user_count FROM general_system.users WHERE user_type = 'REGULAR' AND account_status NOT IN ('DELETED', 'SUSPENDED') GROUP BY device_type ORDER BY user_count DESC;"},
+      {"description": "직업별 정회원 분포", "sql": "SELECT occupation, COUNT(*) AS user_count FROM general_system.users WHERE user_type = 'REGULAR' AND account_status NOT IN ('DELETED', 'SUSPENDED') AND occupation IS NOT NULL GROUP BY occupation ORDER BY user_count DESC;"},
+      {"description": "연간 신규 사용자 수", "sql": "SELECT EXTRACT(YEAR FROM created_at) AS creation_year, COUNT(*) AS new_user_count FROM general_system.users GROUP BY EXTRACT(YEAR FROM created_at) ORDER BY creation_year DESC;"},
+      {"description": "최근 30일 동안 업데이트된 사용자 수", "sql": "SELECT COUNT(*) AS recently_updated_users FROM general_system.users WHERE updated_at >= DATEADD(day, -30, CURRENT_DATE);"},
+      {"description": "최근 30일 동안 접속한 사용자 수", "sql": "SELECT COUNT(*) AS recently_accessed_users FROM general_system.users WHERE last_login_at >= DATEADD(day, -30, CURRENT_DATE);"},
+      {"description": "지난 3주 동안 탈퇴한 남녀 사용자 수", "sql": "WITH deleted_users AS (SELECT gender, COUNT(*) AS delete_count FROM general_system.users WHERE account_status = 'DELETED' AND updated_at >= DATEADD(week, -3, CURRENT_DATE) GROUP BY gender) SELECT du.delete_count AS member_count, CASE WHEN du.gender = 'MALE' THEN 'Male' WHEN du.gender = 'FEMALE' THEN 'Female' ELSE 'Other' END AS gender_category FROM deleted_users AS du ORDER BY du.gender;"},
+      {"description": "2024년 생성된 게스트 사용자 수", "sql": "WITH guest_count AS (SELECT COUNT(*) AS count FROM general_system.users WHERE EXTRACT(YEAR FROM created_at) = 2024 AND user_type = 'GUEST' AND account_status != 'DELETED') SELECT count AS guest_count_2024 FROM guest_count;"},
+      {"description": "지난 한 달 내에 인증을 하지 않은 사용자 수", "sql": "WITH unverified_users AS (SELECT COUNT(*) AS unverified_count FROM general_system.users WHERE auth_status != 'VERIFIED' AND account_status = 'ACTIVE' AND created_at >= DATEADD(month, -1, CURRENT_DATE)) SELECT unverified_count AS unverified_users_last_month FROM unverified_users;"},
+      {"description": "연간 월별 신규 사용자 수", "sql": "SELECT EXTRACT(YEAR FROM created_at) AS creation_year, EXTRACT(MONTH FROM created_at) AS creation_month, COUNT(*) AS new_user_count FROM general_system.users GROUP BY EXTRACT(YEAR FROM created_at), EXTRACT(MONTH FROM created_at) ORDER BY creation_year DESC, creation_month DESC;"},
+      {"description": "30일 이내, 일별 마지막 접속 사용자 수", "sql": "SELECT DATE(last_login_at) AS access_date, COUNT(*) AS daily_active_users FROM general_system.users WHERE last_login_at >= DATEADD(day, -30, CURRENT_DATE) GROUP BY DATE(last_login_at) ORDER BY access_date DESC;"},
+      {"description": "연간 월별 신규 정회원 수", "sql": "SELECT EXTRACT(YEAR FROM created_at) AS creation_year, EXTRACT(MONTH FROM created_at) AS creation_month, COUNT(*) AS new_user_count FROM general_system.users WHERE account_status NOT IN ('DELETED', 'SUSPENDED') AND user_type = 'REGULAR' GROUP BY EXTRACT(YEAR FROM created_at), EXTRACT(MONTH FROM created_at) ORDER BY creation_year DESC, creation_month DESC;"},
+      {"description": "30일 이내, 일별 마지막 접속한 정회원 수", "sql": "SELECT DATE(last_login_at) AS access_date, COUNT(*) AS daily_active_users FROM general_system.users WHERE last_login_at >= DATEADD(day, -30, CURRENT_DATE) AND account_status NOT IN ('DELETED', 'SUSPENDED') AND user_type = 'REGULAR' GROUP BY DATE(last_login_at) ORDER BY access_date DESC;"},
+      {"description": "2024년 12월 16일에 발생한 총 송금액 합", "sql": "SELECT SUM(amount) FROM general_system.transactions WHERE transaction_type = 'TRANSFER' AND status = 'COMPLETED' AND DATE(created_at) = '2024-12-16';"}
+    ]
+  }
+}
