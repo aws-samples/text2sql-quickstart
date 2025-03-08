@@ -166,7 +166,7 @@ class SearchValidator:
                             from_parts = sql_query.split(' from ')
                             if len(from_parts) > 1:
                                 table_part = from_parts[1].split(' where ')[0].strip()
-                                # 테이블명에서 스키마 부분 제거 (예: gold.table_name -> table_name)
+                                # 테이블명에서 스키마 부분 제거 (예: general_system.table_name -> table_name)
                                 table_name = table_part.split('.')[-1] if '.' in table_part else table_part
                                 matching_schema = next(
                                     (table for table in related_tables

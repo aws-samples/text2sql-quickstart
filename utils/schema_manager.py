@@ -20,14 +20,14 @@ class SchemaManager:
             cursor = conn.cursor()
 
             # 스키마 생성
-            cursor.execute("CREATE SCHEMA IF NOT EXISTS gold;")
+            cursor.execute("CREATE SCHEMA IF NOT EXISTS general_system;")
 
             # schema_versions 테이블 존재 여부 확인
             cursor.execute("""
                 SELECT EXISTS (
                     SELECT 1 
                     FROM information_schema.tables 
-                    WHERE table_schema = 'gold' 
+                    WHERE table_schema = 'general_system' 
                     AND table_name = 'schema_versions'
                 );
             """)
@@ -37,7 +37,7 @@ class SchemaManager:
             if not table_exists:
                 # 테이블이 없는 경우 새로 생성
                 cursor.execute("""
-                CREATE TABLE gold.schema_versions (
+                CREATE TABLE general_system.schema_versions (
                     version_id VARCHAR(50) PRIMARY KEY,
                     schema_type VARCHAR(50),
                     version_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -127,14 +127,14 @@ class SchemaManager:
 
             # 이전 latest 상태 해제
             cursor.execute("""
-            UPDATE gold.schema_versions 
+            UPDATE general_system.schema_versions 
             SET is_latest = FALSE 
             WHERE schema_type = %s AND is_latest = TRUE
             """, (schema_type,))
 
             # 새 버전 저장
             cursor.execute("""
-            INSERT INTO gold.schema_versions (
+            INSERT INTO general_system.schema_versions (
                 version_id, schema_type, schema_content, description, 
                 is_latest, created_by
             )
@@ -166,7 +166,7 @@ class SchemaManager:
 
             cursor.execute("""
             SELECT schema_content
-            FROM gold.schema_versions
+            FROM general_system.schema_versions
             WHERE version_id = %s
             """, (version_id,))
 
@@ -214,7 +214,7 @@ class SchemaManager:
                 description,
                 schema_type,
                 is_latest
-            FROM gold.schema_versions
+            FROM general_system.schema_versions
             {where_clause}
             ORDER BY version_timestamp DESC
             """

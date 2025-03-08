@@ -34,11 +34,11 @@ class RedshiftManager:
         self._set_search_path()
 
     def _set_search_path(self):
-        """Redshift search_path를 gold로 설정"""
+        """Redshift search_path를 general_system로 설정"""
         try:
             conn = redshift_connector.connect(**self.config)
             cursor = conn.cursor()
-            cursor.execute("SET search_path TO gold")
+            cursor.execute("SET search_path TO general_system")
             conn.commit()
         except Exception as e:
             st.warning(f"search_path 설정 중 오류 발생: {str(e)}")
@@ -110,16 +110,16 @@ class RedshiftManager:
                 SELECT EXISTS (
                     SELECT 1 
                     FROM information_schema.schemata 
-                    WHERE schema_name = 'gold'
+                    WHERE schema_name = 'general_system'
                 );
             """)
             schema_exists = cursor.fetchone()[0]
 
             if not schema_exists:
-                st.info("🔄 'gold' 스키마가 존재하지 않습니다. 생성을 시작합니다...")
-                cursor.execute("CREATE SCHEMA IF NOT EXISTS gold;")
+                st.info("🔄 'general_system' 스키마가 존재하지 않습니다. 생성을 시작합니다...")
+                cursor.execute("CREATE SCHEMA IF NOT EXISTS general_system;")
                 conn.commit()
-                st.success("✅ 'gold' 스키마가 생성되었습니다!")
+                st.success("✅ 'general_system' 스키마가 생성되었습니다!")
 
             return True
 
@@ -141,7 +141,7 @@ class RedshiftManager:
                 SELECT EXISTS (
                     SELECT 1 
                     FROM information_schema.tables 
-                    WHERE table_schema = 'gold'
+                    WHERE table_schema = 'general_system'
                     AND table_name = '{table_name}'
                 );
             """)
@@ -247,7 +247,7 @@ class RedshiftManager:
             conn = redshift_connector.connect(**self.config)
             cursor = conn.cursor()
 
-            cursor.execute("SET search_path TO gold")
+            cursor.execute("SET search_path TO general_system")
 
             cursor.execute(query)
             results = cursor.fetchall()

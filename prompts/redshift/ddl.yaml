@@ -1,6 +1,6 @@
 prompt: |
   As a database expert, create a Redshift CREATE TABLE IF NOT EXISTS SQL statement based on the following specifications.
-  The table should be created in the 'gold' schema.
+  The table should be created in the 'general_system' schema.
 
   Table Information:
   {table_info}
