@@ -302,12 +302,13 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash
           yum update -y
-          yum install -y python3 git
-          pip3 install --upgrade pip
-          pip3 install streamlit boto3 python-dotenv redshift_connector opensearch-py
+          yum update -yyum install -y python38 git  # Python 3.8 설치
+          alternatives --set python3 /usr/bin/python3.8  # 기본 Python을 3.8로 설정
+          curl -sS https://bootstrap.pypa.io/get-pip.py | python3.8  # pip3.8 설치
+          pip3.8 install streamlit boto3 python-dotenv redshift_connector opensearch-py
           git clone https://github.com/aws-samples/text2sql-quickstart.git /home/ec2-user/text2sql-quickstart
           cd /home/ec2-user/text2sql-quickstart
-          pip3 install -r requirements.txt
+          pip3.8 install -r requirements.txt
           echo "OPENSEARCH_HOST=${OpenSearchDomain.DomainEndpoint}" >> .env
           echo "OPENSEARCH_USERNAME=${OpenSearchMasterUsername}" >> .env
           echo "OPENSEARCH_PASSWORD=${OpenSearchMasterPassword}" >> .env
@@ -316,7 +317,7 @@ Resources:
           echo "REDSHIFT_DATABASE=${DatabaseName}" >> .env
           echo "REDSHIFT_USERNAME=${MasterUsername}" >> .env
           echo "REDSHIFT_PASSWORD=${MasterUserPassword}" >> .env
-          nohup streamlit run app.py --server.port 8501 &
+          nohup /usr/bin/python3.8 -m streamlit run app.py --server.port 8501 &
 
 Outputs:
   VpcId:
