@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Redshift, OpenSearch, Bedrock을 위한 VPC 및 리소스 생성 CloudFormation 템플릿'
-
+Description: 'CloudFormation template to create VPC and resources for Redshift, OpenSearch, and Bedrock'
 Parameters:
   ClusterIdentifier:
     Type: String
