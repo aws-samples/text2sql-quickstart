@@ -28,6 +28,6 @@ REDSHIFT_CONFIG = {
     'host': os.getenv('REDSHIFT_HOST'),
     'port': int(os.getenv('REDSHIFT_PORT', 5439)),
     'database': os.getenv('REDSHIFT_DATABASE'),
-    'user': os.getenv('REDSHIFT_USER'),
+    'user': os.getenv('REDSHIFT_USERNAME'),
     'password': os.getenv('REDSHIFT_PASSWORD')
 }

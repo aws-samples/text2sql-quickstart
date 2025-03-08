@@ -44,7 +44,7 @@ OPENSEARCH_PASSWORD=<OpenSearch 마스터 비밀번호>
 OPENSEARCH_DOMAIN=<OpenSearchDomainEndpoint에서 도메인 이름만, 예: text2sql-opensearch>
 REDSHIFT_HOST=<RedshiftClusterEndpoint에서 포트 제외한 호스트 부분>
 REDSHIFT_DATABASE=dev
-REDSHIFT_USER=admin
+REDSHIFT_USERNAME=admin
 REDSHIFT_PASSWORD=YourPass123
 ```
 
