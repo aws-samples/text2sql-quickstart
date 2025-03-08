@@ -43,19 +43,25 @@ Parameters:
     Description: OpenSearch instance type
   OpenSearchMasterUsername:
     Type: String
-    Default: admin
+    Default: opensearch_user
     Description: OpenSearch master username
   OpenSearchMasterPassword:
     Type: String
     NoEcho: true
     MinLength: 8
     Description: OpenSearch master password (minimum 8 characters)
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: Latest Amazon Linux 2 AMI ID from SSM Parameter Store
 
 Conditions:
   IsMultiNode: !Not [!Equals [!Ref NumberOfNodes, 1]]
 
 Resources:
-  # VPC 및 네트워크 설정
   RedshiftVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -256,6 +262,62 @@ Resources:
                 Action: 'bedrock:*'
                 Resource: '*'
 
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref RedshiftVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0  # SSH 접근 (로컬 IP로 제한 가능)
+        - IpProtocol: tcp
+          FromPort: 8501
+          ToPort: 8501
+          CidrIp: 0.0.0.0/0  # Streamlit 기본 포트 (로컬 IP로 제한 가능)
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 5439
+          ToPort: 5439
+          CidrIp: 10.0.0.0/24  # Redshift 연결
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/24  # OpenSearch 연결
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0  # Bedrock 및 외부 HTTPS 연결
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.micro
+      ImageId: !Ref LatestAmiId  # SSM 파라미터로 동적 참조
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref EC2SecurityGroup]
+      KeyName: !Ref EC2KeyPair
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y python3 git
+          pip3 install --upgrade pip
+          pip3 install streamlit boto3 python-dotenv redshift_connector opensearch-py
+          git clone https://github.com/aws-samples/text2sql-quickstart.git /home/ec2-user/text2sql-quickstart
+          cd /home/ec2-user/text2sql-quickstart
+          pip3 install -r requirements.txt
+          echo "OPENSEARCH_HOST=${OpenSearchDomain.DomainEndpoint}" >> .env
+          echo "OPENSEARCH_USERNAME=${OpenSearchMasterUsername}" >> .env
+          echo "OPENSEARCH_PASSWORD=${OpenSearchMasterPassword}" >> .env
+          echo "OPENSEARCH_DOMAIN=${OpenSearchDomainName}" >> .env
+          echo "REDSHIFT_HOST=${RedshiftCluster.Endpoint.Address}" >> .env
+          echo "REDSHIFT_DATABASE=${DatabaseName}" >> .env
+          echo "REDSHIFT_USERNAME=${MasterUsername}" >> .env
+          echo "REDSHIFT_PASSWORD=${MasterUserPassword}" >> .env
+          nohup streamlit run app.py --server.port 8501 &
+
 Outputs:
   VpcId:
     Description: VPC ID
@@ -278,3 +340,6 @@ Outputs:
   BedrockRoleArn:
     Description: IAM Role ARN for Bedrock Access
     Value: !GetAtt BedrockAccessRole.Arn
+  EC2InstancePublicIP:
+    Description: Public IP of EC2 Instance
+    Value: !GetAtt EC2Instance.PublicIp

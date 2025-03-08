@@ -6,6 +6,13 @@
 - **Python**: 3.8 이상 버전.
 - **필수 패키지**: `requirements.txt`에 명시된 의존성 설치 필요.
 - **CloudFormation 템플릿**: `cloud-formation/template.yaml` 파일 준비.
+- **SSH 키 페어**: EC2 접속을 위해 키 페어 생성 필요.
+  - 생성 방법:
+    ```bash
+    aws ec2 create-key-pair --key-name my-key-pair --query 'KeyMaterial' --output text > my-key-pair.pem
+    chmod 400 my-key-pair.pem
+    ```
+  - 생성 후 my-key-pair.pem 파일을 안전하게 보관.
 ## Execution Steps
 ### Install required packages:
 ```bash
