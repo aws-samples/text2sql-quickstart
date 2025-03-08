@@ -5,40 +5,51 @@ Parameters:
   ClusterIdentifier:
     Type: String
     Default: my-redshift-cluster
-    Description: Redshift 클러스터 식별자
+    Description: Redshift cluster identifier
   DatabaseName:
     Type: String
     Default: dev
-    Description: Redshift 데이터베이스 이름
+    Description: Redshift database name
   MasterUsername:
     Type: String
     Default: admin
-    Description: Redshift 마스터 사용자 이름
+    Description: Redshift master username
   MasterUserPassword:
     Type: String
     NoEcho: true
     MinLength: 8
-    Description: Redshift 마스터 사용자 비밀번호
+    AllowedPattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$
+    ConstraintDescription: Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.
+    Description: Redshift master password (minimum 8 characters, must include uppercase, lowercase, and number)
   NodeType:
     Type: String
     Default: dc2.large
     AllowedValues: [dc2.large, dc2.8xlarge, ra3.xlplus, ra3.4xlarge, ra3.16xlarge]
-    Description: Redshift 노드 타입
+    Description: Redshift node type
   NumberOfNodes:
     Type: Number
     Default: 1
     MinValue: 1
     MaxValue: 99
-    Description: Redshift 노드 수
+    Description: Number of Redshift nodes
   OpenSearchDomainName:
     Type: String
     Default: text2sql-opensearch
-    Description: OpenSearch 도메인 이름
+    Description: OpenSearch domain name
   OpenSearchInstanceType:
     Type: String
     Default: t3.small.search
     AllowedValues: [t3.small.search, t3.medium.search, r6g.large.search]
-    Description: OpenSearch 인스턴스 타입
+    Description: OpenSearch instance type
+  OpenSearchMasterUsername:
+    Type: String
+    Default: admin
+    Description: OpenSearch master username
+  OpenSearchMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: OpenSearch master password (minimum 8 characters)
 
 Conditions:
   IsMultiNode: !Not [!Equals [!Ref NumberOfNodes, 1]]
@@ -178,7 +189,6 @@ Resources:
       PubliclyAccessible: false
       Port: 5439
 
-  # OpenSearch 설정
   OpenSearchSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -206,6 +216,18 @@ Resources:
       VPCOptions:
         SubnetIds: [!Ref PrivateSubnet1]
         SecurityGroupIds: [!Ref OpenSearchSecurityGroup]
+      AdvancedSecurityOptions:
+        Enabled: true
+        InternalUserDatabaseEnabled: true
+        MasterUserOptions:
+          MasterUserName: !Ref OpenSearchMasterUsername
+          MasterUserPassword: !Ref OpenSearchMasterPassword
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      EncryptionAtRestOptions:
+        Enabled: true
+      DomainEndpointOptions:
+        EnforceHTTPS: true
       AccessPolicies:
         Version: '2012-10-17'
         Statement:
@@ -214,10 +236,7 @@ Resources:
               AWS: '*'
             Action: 'es:*'
             Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${OpenSearchDomainName}/*'
-      AdvancedOptions:
-        rest.action.multi.allow_explicit_index: 'true'
 
-  # Bedrock 관련 IAM 역할 (Bedrock은 직접 프로비저닝되지 않으므로 접근 권한 부여)
   BedrockAccessRole:
     Type: AWS::IAM::Role
     Properties:
@@ -244,9 +263,18 @@ Outputs:
   RedshiftClusterEndpoint:
     Description: Redshift Cluster Endpoint
     Value: !Sub "${RedshiftCluster.Endpoint.Address}:${RedshiftCluster.Endpoint.Port}"
+  RedshiftDatabaseName:
+    Description: Redshift Database Name
+    Value: !Ref DatabaseName
+  RedshiftUsername:
+    Description: Redshift Master Username
+    Value: !Ref MasterUsername
   OpenSearchDomainEndpoint:
     Description: OpenSearch Domain Endpoint
     Value: !GetAtt OpenSearchDomain.DomainEndpoint
+  OpenSearchUsername:
+    Description: OpenSearch Master Username
+    Value: !Ref OpenSearchMasterUsername
   BedrockRoleArn:
     Description: IAM Role ARN for Bedrock Access
     Value: !GetAtt BedrockAccessRole.Arn
