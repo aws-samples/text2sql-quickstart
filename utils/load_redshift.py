@@ -38,7 +38,7 @@ class RedshiftManager:
         try:
             conn = redshift_connector.connect(**self.config)
             cursor = conn.cursor()
-            cursor.execute("SET search_path TO general_system")
+            cursor.execute("SET search_path TO public")
             conn.commit()
         except Exception as e:
             st.warning(f"search_path 설정 중 오류 발생: {str(e)}")

@@ -1,77 +1,67 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation template to create VPC and resources for Redshift, OpenSearch, and Bedrock'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template for Text2SQL with EC2, Redshift, and OpenSearch
+
 Parameters:
-  ClusterIdentifier:
+  MasterUserPassword:
     Type: String
-    Default: my-redshift-cluster
-    Description: Redshift cluster identifier
+    Description: Master password for Redshift cluster
+    NoEcho: true
+  OpenSearchMasterPassword:
+    Type: String
+    Description: Master password for OpenSearch domain
+    NoEcho: true
+  EC2KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access
   DatabaseName:
     Type: String
     Default: dev
-    Description: Redshift database name
+    Description: Name of the Redshift database
   MasterUsername:
     Type: String
     Default: admin
-    Description: Redshift master username
-  MasterUserPassword:
-    Type: String
-    NoEcho: true
-    MinLength: 8
-    AllowedPattern: ^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$
-    ConstraintDescription: Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.
-    Description: Redshift master password (minimum 8 characters, must include uppercase, lowercase, and number)
-  NodeType:
-    Type: String
-    Default: dc2.large
-    AllowedValues: [dc2.large, dc2.8xlarge, ra3.xlplus, ra3.4xlarge, ra3.16xlarge]
-    Description: Redshift node type
-  NumberOfNodes:
-    Type: Number
-    Default: 1
-    MinValue: 1
-    MaxValue: 99
-    Description: Number of Redshift nodes
-  OpenSearchDomainName:
-    Type: String
-    Default: text2sql-opensearch
-    Description: OpenSearch domain name
-  OpenSearchInstanceType:
-    Type: String
-    Default: t3.small.search
-    AllowedValues: [t3.small.search, t3.medium.search, r6g.large.search]
-    Description: OpenSearch instance type
+    Description: Master username for Redshift cluster
   OpenSearchMasterUsername:
     Type: String
     Default: opensearch_user
-    Description: OpenSearch master username
-  OpenSearchMasterPassword:
-    Type: String
-    NoEcho: true
-    MinLength: 8
-    Description: OpenSearch master password (minimum 8 characters)
-  EC2KeyPair:
-    Type: AWS::EC2::KeyPair::KeyName
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Description: Master username for OpenSearch domain
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
-    Description: Latest Amazon Linux 2023 AMI ID from SSM Parameter Store
-
-Conditions:
-  IsMultiNode: !Not [!Equals [!Ref NumberOfNodes, 1]]
+    Description: Latest Amazon Linux 2023 AMI from SSM Parameter Store
 
 Resources:
   RedshiftVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/24
-      EnableDnsHostnames: true
       EnableDnsSupport: true
-      Tags: [{Key: Name, Value: Text2SQL-VPC}]
+      EnableDnsHostnames: true
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.0/26
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Sub "${AWS::Region}a"
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.64/26
+      AvailabilityZone: !Sub "${AWS::Region}a"
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RedshiftVPC
+      CidrBlock: 10.0.0.128/26
+      AvailabilityZone: !Sub "${AWS::Region}b"
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
-    Properties: {Tags: [{Key: Name, Value: Text2SQL-IGW}]}
 
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -79,94 +69,23 @@ Resources:
       VpcId: !Ref RedshiftVPC
       InternetGatewayId: !Ref InternetGateway
 
-  PublicSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref RedshiftVPC
-      CidrBlock: 10.0.0.0/26
-      AvailabilityZone: !Select [0, !GetAZs '']
-      MapPublicIpOnLaunch: true
-      Tags: [{Key: Name, Value: Text2SQL-Public-Subnet}]
-
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref RedshiftVPC
-      CidrBlock: 10.0.0.64/26
-      AvailabilityZone: !Select [0, !GetAZs '']
-      Tags: [{Key: Name, Value: Text2SQL-Private-Subnet-1}]
-
-  PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref RedshiftVPC
-      CidrBlock: 10.0.0.128/26
-      AvailabilityZone: !Select [0, !GetAZs '']
-      Tags: [{Key: Name, Value: Text2SQL-Private-Subnet-2}]
-
-  NatGatewayEIP:
-    Type: AWS::EC2::EIP
-    DependsOn: AttachGateway
-    Properties: {Domain: vpc}
-
-  NatGateway:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGatewayEIP.AllocationId
-      SubnetId: !Ref PublicSubnet
-      Tags: [{Key: Name, Value: Text2SQL-NAT}]
-
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref RedshiftVPC
-      Tags: [{Key: Name, Value: Text2SQL-Public-RT}]
 
   PublicRoute:
     Type: AWS::EC2::Route
-    DependsOn: AttachGateway
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
-
-  PrivateRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref RedshiftVPC
-      Tags: [{Key: Name, Value: Text2SQL-Private-RT}]
-
-  PrivateRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway
 
   PublicSubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
-
-  PrivateSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet1
-      RouteTableId: !Ref PrivateRouteTable
-
-  PrivateSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PrivateSubnet2
-      RouteTableId: !Ref PrivateRouteTable
-
-  # Redshift 설정
-  RedshiftSubnetGroup:
-    Type: AWS::Redshift::ClusterSubnetGroup
-    Properties:
-      Description: Subnet group for Redshift cluster
-      SubnetIds: [!Ref PrivateSubnet1, !Ref PrivateSubnet2]
 
   RedshiftSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -179,21 +98,6 @@ Resources:
           ToPort: 5439
           CidrIp: 10.0.0.0/24
 
-  RedshiftCluster:
-    Type: AWS::Redshift::Cluster
-    Properties:
-      ClusterIdentifier: !Ref ClusterIdentifier
-      DBName: !Ref DatabaseName
-      MasterUsername: !Ref MasterUsername
-      MasterUserPassword: !Ref MasterUserPassword
-      NodeType: !Ref NodeType
-      NumberOfNodes: !Ref NumberOfNodes
-      ClusterType: !If [IsMultiNode, 'multi-node', 'single-node']
-      ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
-      VpcSecurityGroupIds: [!Ref RedshiftSecurityGroup]
-      PubliclyAccessible: false
-      Port: 5439
-
   OpenSearchSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -205,15 +109,77 @@ Resources:
           ToPort: 443
           CidrIp: 10.0.0.0/24
 
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance with Streamlit
+      VpcId: !Ref RedshiftVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 8501
+          ToPort: 8501
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BedrockAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "bedrock:*"
+                Resource: "*"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref EC2Role]
+
+  RedshiftCluster:
+    Type: AWS::Redshift::Cluster
+    Properties:
+      ClusterType: single-node
+      NodeType: dc2.large
+      NumberOfNodes: 1
+      DBName: !Ref DatabaseName
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
+      VpcSecurityGroupIds: [!Ref RedshiftSecurityGroup]
+      ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
+
+  RedshiftSubnetGroup:
+    Type: AWS::Redshift::ClusterSubnetGroup
+    Properties:
+      Description: Subnet group for Redshift cluster
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
   OpenSearchDomain:
     Type: AWS::OpenSearchService::Domain
     Properties:
-      DomainName: !Ref OpenSearchDomainName
-      EngineVersion: 'OpenSearch_2.11'
+      EngineVersion: "OpenSearch_2.11"
       ClusterConfig:
-        InstanceType: !Ref OpenSearchInstanceType
+        InstanceType: t3.small.search
         InstanceCount: 1
-        ZoneAwarenessEnabled: false
       EBSOptions:
         EBSEnabled: true
         VolumeSize: 10
@@ -221,6 +187,14 @@ Resources:
       VPCOptions:
         SubnetIds: [!Ref PrivateSubnet1]
         SecurityGroupIds: [!Ref OpenSearchSecurityGroup]
+      AccessPolicies:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: "es:*"
+            Resource: !Sub "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/text2sql-${AWS::StackName}/*"
       AdvancedSecurityOptions:
         Enabled: true
         InternalUserDatabaseEnabled: true
@@ -231,114 +205,59 @@ Resources:
         Enabled: true
       EncryptionAtRestOptions:
         Enabled: true
-      DomainEndpointOptions:
+      DomainEndpointOptions:  # HTTPS 강제 추가
         EnforceHTTPS: true
-      AccessPolicies:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: '*'
-            Action: 'es:*'
-            Resource: !Sub 'arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/${OpenSearchDomainName}/*'
-
-  BedrockAccessRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: 'bedrock.amazonaws.com'
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: BedrockFullAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 'bedrock:*'
-                Resource: '*'
-
-  EC2SecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for EC2 instance
-      VpcId: !Ref RedshiftVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0  # SSH 접근 (로컬 IP로 제한 가능)
-        - IpProtocol: tcp
-          FromPort: 8501
-          ToPort: 8501
-          CidrIp: 0.0.0.0/0  # Streamlit 기본 포트 (로컬 IP로 제한 가능)
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 5439
-          ToPort: 5439
-          CidrIp: 10.0.0.0/24  # Redshift 연결
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 10.0.0.0/24  # OpenSearch 연결
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0  # Bedrock 및 외부 HTTPS 연결
+      DomainName: !Sub "text2sql-${AWS::StackName}"
 
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t3.micro
-      ImageId: !Ref LatestAmiId  # SSM 파라미터로 동적 참조
+      ImageId: !Ref LatestAmiId
       SubnetId: !Ref PublicSubnet
       SecurityGroupIds: [!Ref EC2SecurityGroup]
       KeyName: !Ref EC2KeyPair
+      IamInstanceProfile: !Ref EC2InstanceProfile
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          dnf update -y  # AL2023은 dnf 사용
-          dnf install -y python3 git  # 기본 Python 3.9 이상
-          curl -sS https://bootstrap.pypa.io/get-pip.py | python3
-          pip3 install streamlit boto3 python-dotenv redshift_connector opensearch-py
-          git clone https://github.com/aws-samples/text2sql-quickstart.git /home/ec2-user/text2sql-quickstart
+          touch /var/log/userdata.log
+          chmod 666 /var/log/userdata.log
+          echo "Starting UserData script" > /var/log/userdata.log
+          for i in {1..30}; do
+            if curl -Is https://github.com >/dev/null 2>&1; then
+              echo "Network is up" >> /var/log/userdata.log
+              break
+            fi
+            echo "Waiting for network... ($i/30)" >> /var/log/userdata.log
+            sleep 1
+          done
+          dnf update -y >> /var/log/userdata.log 2>&1 || echo "dnf update failed" >> /var/log/userdata.log
+          dnf install -y python3 python3-pip git >> /var/log/userdata.log 2>&1 || echo "dnf install failed" >> /var/log/userdata.log
+          mkdir -p /home/ec2-user/text2sql-quickstart
+          chown ec2-user:ec2-user /home/ec2-user/text2sql-quickstart
+          git clone https://github.com/aws-samples/text2sql-quickstart.git /home/ec2-user/text2sql-quickstart >> /var/log/userdata.log 2>&1 || echo "git clone failed" >> /var/log/userdata.log
           cd /home/ec2-user/text2sql-quickstart
-          pip3 install -r requirements.txt
+          /usr/bin/pip3 install -r requirements.txt --user >> /var/log/userdata.log 2>&1 || echo "pip install failed" >> /var/log/userdata.log
           echo "OPENSEARCH_HOST=${OpenSearchDomain.DomainEndpoint}" >> .env
           echo "OPENSEARCH_USERNAME=${OpenSearchMasterUsername}" >> .env
           echo "OPENSEARCH_PASSWORD=${OpenSearchMasterPassword}" >> .env
-          echo "OPENSEARCH_DOMAIN=${OpenSearchDomainName}" >> .env
+          echo "OPENSEARCH_DOMAIN=text2sql-${AWS::StackName}" >> .env
           echo "REDSHIFT_HOST=${RedshiftCluster.Endpoint.Address}" >> .env
           echo "REDSHIFT_DATABASE=${DatabaseName}" >> .env
           echo "REDSHIFT_USERNAME=${MasterUsername}" >> .env
           echo "REDSHIFT_PASSWORD=${MasterUserPassword}" >> .env
-          nohup /usr/bin/python3.8 -m streamlit run app.py --server.port 8501 &
+          echo "Starting Streamlit" >> /var/log/userdata.log
+          nohup /usr/bin/python3 -m streamlit run app.py --server.port 8501 >> /var/log/userdata.log 2>&1 &
+          echo "UserData script completed" >> /var/log/userdata.log
 
 Outputs:
-  VpcId:
-    Description: VPC ID
-    Value: !Ref RedshiftVPC
-  RedshiftClusterEndpoint:
-    Description: Redshift Cluster Endpoint
-    Value: !Sub "${RedshiftCluster.Endpoint.Address}:${RedshiftCluster.Endpoint.Port}"
-  RedshiftDatabaseName:
-    Description: Redshift Database Name
-    Value: !Ref DatabaseName
-  RedshiftUsername:
-    Description: Redshift Master Username
-    Value: !Ref MasterUsername
-  OpenSearchDomainEndpoint:
-    Description: OpenSearch Domain Endpoint
-    Value: !GetAtt OpenSearchDomain.DomainEndpoint
-  OpenSearchUsername:
-    Description: OpenSearch Master Username
-    Value: !Ref OpenSearchMasterUsername
-  BedrockRoleArn:
-    Description: IAM Role ARN for Bedrock Access
-    Value: !GetAtt BedrockAccessRole.Arn
-  EC2InstancePublicIP:
-    Description: Public IP of EC2 Instance
+  EC2PublicIP:
+    Description: Public IP of the EC2 instance
     Value: !GetAtt EC2Instance.PublicIp
+  RedshiftEndpoint:
+    Description: Endpoint of the Redshift cluster
+    Value: !GetAtt RedshiftCluster.Endpoint.Address
+  OpenSearchEndpoint:
+    Description: Endpoint of the OpenSearch domain
+    Value: !GetAtt OpenSearchDomain.DomainEndpoint
