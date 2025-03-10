@@ -15,7 +15,7 @@ class PackageManager:
         self.s3_client = boto3.client('s3', region_name=AWS_REGION)
         # opensearch-py 클라이언트 추가
         self.os_client = OpenSearch(
-            hosts=[{'host': OPENSEARCH_CONFIG.get('endpoint'), 'port': 443}],
+            hosts=[{'host': OPENSEARCH_CONFIG.get('host'), 'port': 443}],
             http_auth=(OPENSEARCH_CONFIG.get('username'), OPENSEARCH_CONFIG.get('password')),
             use_ssl=True,
             verify_certs=True,
