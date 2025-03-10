@@ -340,85 +340,117 @@ def render_synonym_dict():
     domain_name = OPENSEARCH_CONFIG.get('domain')
     st.subheader(f"Domain: {domain_name}")
 
-    # 패키지 목록 표시
+    # 패키지 목록 표시 (테이블로 개선)
     st.subheader("Current Synonym Packages")
     packages = st.session_state.package_manager.describe_dictionaries(domain_name)
 
     if packages:
+        # 테이블 데이터 준비
+        package_data = [
+            {
+                "Package Name": pkg["package_name"],
+                "Package ID": pkg["package_id"],
+                "Version": pkg["package_version"],
+                "Last Updated": format_last_updated(pkg["last_updated"]),
+                "S3 Bucket": pkg["s3_bucket"],
+                "Synonym File": pkg["s3_key"]
+            }
+            for pkg in packages
+        ]
+        st.table(package_data)
+
+        # 각 패키지별 작업
         for package in packages:
             with st.expander(f"패키지: {package['package_name']}", expanded=False):
-
-                last_updated_formatted = format_last_updated(package['last_updated'])
-
-                # 카드 스타일로 정보 표시
                 st.markdown(f"### 패키지 ID: **{package['package_id']}**")
                 st.markdown(f"**패키지 버전:** <span style='color: yellow;'>{package['package_version']}</span>", unsafe_allow_html=True)
-                st.markdown(f"**최종 업데이트:** {last_updated_formatted}")
+                st.markdown(f"**최종 업데이트:** {format_last_updated(package['last_updated'])}")
                 st.markdown(f"**S3 버킷 이름:** {package['s3_bucket']}")
                 st.markdown(f"**동의어 사전 이름:** {package['s3_key']}")
 
-                # 패키지 업데이트 버튼
-                if st.button("사전 업데이트", key=f"update_button_{package['package_id']}"):
-                    st.session_state.update_package = package['package_id']
+                col1, col2 = st.columns(2)
+                with col1:
+                    # 패키지 업데이트 버튼
+                    if st.button("사전 업데이트", key=f"update_button_{package['package_id']}"):
+                        st.session_state.update_package = package['package_id']
+                with col2:
+                    # 패키지 삭제 버튼
+                    if st.button("사전 삭제", key=f"delete_button_{package['package_id']}"):
+                        with st.spinner("삭제 중..."):
+                            response = st.session_state.package_manager.delete_dictionary(
+                                package_id=package['package_id'],
+                                package_name=package['package_name'],
+                                domain_name=domain_name
+                            )
+                        if response:
+                            st.success(f"패키지 {package['package_name']} 삭제 완료")
+                        else:
+                            st.error("삭제 실패")
 
-                # 패키지 삭제 버튼
-                if st.button("사전 삭제", key=f"delete_button_{package['package_id']}"):
-                    response = st.session_state.package_manager.delete_dictionary(
-                        package_id=package['package_id'],
-                        package_name=package['package_name'],
-                        domain_name=domain_name
-                    )
-
-            # 패키지 업데이트 폼 (조건부 렌더링)
+            # 패키지 업데이트 폼
             if hasattr(st.session_state, 'update_package') and st.session_state.update_package == package['package_id']:
                 st.subheader("동의어 사전 업데이트")
                 update_file = st.file_uploader("Upload your synonym file", type=["txt"], key=f"file_uploader_{package['package_id']}")
                 if st.button("Confirm Update", key=f"confirm_update_{package['package_id']}"):
                     if update_file:
-                        response = st.session_state.package_manager.update_dictionary(
-                            package_id=package['package_id'],
-                            package_name=package['package_name'],
-                            synonym_file=update_file
-                        )
+                        with st.spinner("업데이트 및 재인덱싱 중..."):
+                            response = st.session_state.package_manager.update_dictionary(
+                                package_id=package['package_id'],
+                                package_name=package['package_name'],
+                                synonym_file=update_file
+                            )
                         if response:
-                            st.success(f"Package {st.session_state.update_package} updated successfully!")
+                            st.success(f"패키지 {package['package_name']} 업데이트 및 재인덱싱 완료!")
                             del st.session_state.update_package
+                        else:
+                            st.error("업데이트 실패")
                     else:
-                        st.warning("Please fill in all fields to update the package.")
+                        st.warning("업로드할 동의어 파일을 선택하세요.")
     else:
-        st.info("No packages found for this domain.")
+        st.info("이 도메인에 등록된 패키지가 없습니다.")
 
     # 새 패키지 생성 버튼
     if st.button("Create New Package"):
         st.session_state.create_new_package = True
 
-    # 새 패키지 생성 "모달"
+    # 새 패키지 생성 폼
     if 'create_new_package' in st.session_state and st.session_state.create_new_package:
         with st.form("new_package_form"):
             st.subheader("Create New Package")
             new_package_name = st.text_input("New Package Name")
             uploaded_file = st.file_uploader("Upload your synonym file", type=["txt"])
+            st.markdown(f"**S3 Bucket:** text2sql-synonyms-{st.session_state.package_manager.account_id} (고정)")
 
-            submitted = st.form_submit_button("Create")
+            col1, col2 = st.columns(2)
+            with col1:
+                submitted = st.form_submit_button("Create")
+            with col2:
+                cancelled = st.form_submit_button("Cancel")
+
             if submitted:
                 if new_package_name and uploaded_file:
-                    response = st.session_state.package_manager.create_dictionary(
-                        package_name=new_package_name,
-                        synonym_file=uploaded_file
-                    )
+                    with st.spinner("패키지 생성 및 재인덱싱 중..."):
+                        response = st.session_state.package_manager.create_dictionary(
+                            package_name=new_package_name,
+                            synonym_file=uploaded_file
+                        )
                     if response:
-                        st.success(f"새로운 텍스트 사전 등록이 완료됐습니다.")
+                        st.success(f"새로운 텍스트 사전 {new_package_name} 등록 및 재인덱싱 완료!")
                         st.session_state.create_new_package = False
-
+                    else:
+                        st.error("패키지 생성 실패")
                 else:
-                    st.warning("Please fill in all fields to create a new package.")
-            if st.form_submit_button("Cancel"):
+                    st.warning("패키지 이름과 동의어 파일을 모두 입력하세요.")
+            if cancelled:
                 st.session_state.create_new_package = False
 
     # 전체 패키지 새로고침 버튼
     if st.button("Refresh All Packages"):
-        # 여기에 모든 패키지 새로고침 로직 추가
-        st.success("모든 패키지를 새롭게 불러왔습니다.")
+        with st.spinner("패키지 목록 새로고침 중..."):
+            # 패키지 목록 다시 불러오기
+            st.session_state.package_manager = PackageManager()  # 인스턴스 새로 생성
+            st.success("모든 패키지를 새롭게 불러왔습니다.")
+            st.experimental_rerun()  # 페이지 새로고침
 
 def render_clear_indices_page():
     """인덱스 초기화 페이지 렌더링"""
