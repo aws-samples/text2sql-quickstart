@@ -14,11 +14,6 @@
     ```
   - 생성 후 my-key-pair.pem 파일을 안전하게 보관.
 ## Execution Steps
-### Install required packages:
-```bash
-pip install -r requirements.txt
-```
-* Note : 여러 패키지가 설치됩니다. 환경에 따라 의존성 충돌이 발생할 수 있으니, requirements.txt 파일에서 버전 호환성을 확인하세요.
 ### Provision AWS Resources
 AWS 리소스를 배포하려면 다음 단계를 따르세요.
 #### 1. Redshift + OpenSearch 배포
@@ -32,8 +27,8 @@ aws cloudformation create-stack \
   --parameters ParameterKey=MasterUserPassword,ParameterValue=<YourPass123> \
   --region ap-northeast-2
 ```
-MasterUserPassword는 최소 8자 이상, 대문자/소문자/숫자를 포함해야 합니다(예: YourPass123).
-배포는 약 10~15분 소요되며, 진행 상황은 AWS Management Console의 CloudFormation에서 확인 가능.
+Password는 최소 8자 이상, 대문자/소문자/숫자를 포함해야 합니다(예: YourPass123).
+배포는 약 10~15분 소요되며, 진행 상황은 AWS Management Console의 CloudFormation에서 확인 가능합니다.
 * 출력값 확인:
 ```bash
 aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0].Outputs"
@@ -44,23 +39,6 @@ aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0]
 * OpenSearchDomainEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
 * OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
 * BedrockRoleArn: Bedrock API 호출용 IAM 역할 ARN.
-
-환경 변수 설정:
-* 프로젝트 루트의 .env 파일에 CloudFormation 출력값을 반영합니다.
-```text
-OPENSEARCH_HOST=<OpenSearchDomainEndpoint에서 'https://' 제외한 호스트 부분>
-OPENSEARCH_USERNAME=<OpenSearch 마스터 사용자 이름>
-OPENSEARCH_PASSWORD=<OpenSearch 마스터 비밀번호>
-OPENSEARCH_DOMAIN=<OpenSearchDomainEndpoint에서 도메인 이름만, 예: text2sql-opensearch>
-REDSHIFT_HOST=<RedshiftClusterEndpoint에서 포트 제외한 호스트 부분>
-REDSHIFT_DATABASE=dev
-REDSHIFT_USERNAME=admin
-REDSHIFT_PASSWORD=YourPass123
-```
-
-* 주의:
-  * REDSHIFT_HOST와 OPENSEARCH_HOST는 포트를 제외한 호스트만 입력. 포트는 기본값(5439, 443)으로 설정됨.
-  * 비밀번호는 출력값에 없으므로 배포 시 입력한 값을 수동으로 기록할 것.
 
 #### 2. Bedrock 파운데이션 모델 활성화
 Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다음 단계를 따라 필요한 모델을 활성화 하세요.
@@ -76,9 +54,10 @@ Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다�
 
 ### Other preparations
 
-#### 1. Schema Information + Sample Queries
+#### 1. Sample Schema + Sample Queries
 * 위치: sample-data/multi_schema_info.json 파일에 Redshift 테이블(users, transactions)의 스키마 정의 포함.
 * 사용: Text2SQL 모델이 테이블 구조를 이해하는 데 필요.
+* 샘플 스키마와 쿼리들은 애플리케이션이 실행되면 업로드가 가능하므로 하단의 Execution Examples을 참조.
 
 ### Execution Examples
 
