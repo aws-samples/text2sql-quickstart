@@ -15,14 +15,7 @@
                 "korean_search_analyzer": {
                     "type": "custom",
                     "tokenizer": "nori_tokenizer",
-                    "filter": ["nori_readingform", "lowercase", "synonym_filter"]
-                }
-            },
-            "filter": {
-                "synonym_filter": {
-                    "type": "synonym",
-                    "synonyms_path": "analyzers/F224293479",
-                    "updateable": true
+                    "filter": ["nori_readingform", "lowercase"]
                 }
             }
         }
@@ -80,12 +73,8 @@
                             "english": {"type": "text"}
                         }
                     },
-                    "examples": {
-                        "type": "text"
-                    },
-                    "valid_values": {
-                        "type": "keyword"
-                    },
+                    "examples": {"type": "text"},
+                    "valid_values": {"type": "keyword"},
                     "business_context": {
                         "type": "object",
                         "properties": {
