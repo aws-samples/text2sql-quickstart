@@ -2,15 +2,27 @@ import boto3
 import redshift_connector
 from botocore.exceptions import ClientError
 import time
-
+from opensearchpy import OpenSearch, RequestsHttpConnection
 from config import REDSHIFT_CONFIG, AWS_REGION, OPENSEARCH_CONFIG
 import streamlit as st
+import json
+import os
 
 class PackageManager:
     def __init__(self):
         self.redshift_config = REDSHIFT_CONFIG
         self.opensearch_client = boto3.client('opensearch', region_name=AWS_REGION)
         self.s3_client = boto3.client('s3', region_name=AWS_REGION)
+        # opensearch-py 클라이언트 추가
+        self.os_client = OpenSearch(
+            hosts=[{'host': OPENSEARCH_CONFIG.get('endpoint'), 'port': 443}],
+            http_auth=(OPENSEARCH_CONFIG.get('username'), OPENSEARCH_CONFIG.get('password')),
+            use_ssl=True,
+            verify_certs=True,
+            connection_class=RequestsHttpConnection
+        )
+        self.account_id = self._get_account_id()
+        self.s3_bucket_name = f"text2sql-synonyms-{self.account_id}"  # 고정된 S3 버킷 이름
         self._init_tables()
 
     # 패키지 정보 테이블 생성
@@ -44,6 +56,16 @@ class PackageManager:
             return domain_names['DomainNames']
         except Exception as e:
             print(f"도메인 목록 조회 중 문제가 발생했습니다. {e}")
+
+    def _load_mapping_file(self, filename: str) -> dict:
+        """Load mapping configuration from JSON file"""
+        try:
+            mapping_path = os.path.join('utils', 'opensearch_mappings', filename)
+            with open(mapping_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            st.error(f"매핑 파일 로드 중 오류 발생: {str(e)}")
+            return {}
 
     def delete_package(self, package_id: str):
         response = self.opensearch_client.delete_package(
@@ -290,7 +312,7 @@ class PackageManager:
             s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
 
             # 패키지 도메인에서 연결 해제
-            dissociate_response = self._dessociate_package(package_id=package_id, domain_name=domain_name)
+            dissociate_response = self._dissociate_package(package_id=package_id, domain_name=domain_name)
 
             # 연결 해제 대기
             if self.wait_package_dissociated(package_id=package_id, domain_name=domain_name):
@@ -388,20 +410,13 @@ class PackageManager:
 
     # 패키지 생성
     def create_dictionary(self, package_name: str, synonym_file):
-
         result = {}
         try:
             domain_name = OPENSEARCH_CONFIG.get('domain')
-            account_id = self._get_account_id()
-            s3_bucket_name = f"{package_name}-{domain_name}-{account_id}"
-
-            # 버킷 유무 확인
-            if not self._bucket_exists(s3_bucket_name):
-                self._create_bucket(s3_bucket_name)
 
             # 텍스트 사전 업로드
             self._upload_file(file=synonym_file,
-                              bucket_name=s3_bucket_name,
+                              bucket_name=self.s3_bucket_name,
                               s3_key=synonym_file.name)
 
             # 패키지 생성
@@ -409,7 +424,7 @@ class PackageManager:
                 PackageName=package_name,
                 PackageType='TXT-DICTIONARY',
                 PackageSource={
-                    'S3BucketName': s3_bucket_name,
+                    'S3BucketName': self.s3_bucket_name,
                     'S3Key': synonym_file.name
                 }
             )
@@ -442,15 +457,19 @@ class PackageManager:
                     """
                     conn = redshift_connector.connect(**self.redshift_config)
                     cursor = conn.cursor()
-                    cursor.execute(insert_query, (package_id, package_name, s3_bucket_name, synonym_file.name, domain_name))
+                    cursor.execute(insert_query,
+                                   (package_id, package_name, self.s3_bucket_name, synonym_file.name, domain_name))
                     conn.commit()
+
+                    # 재인덱싱 호출
+                    self._reindex_with_synonyms(package_id)
 
                     result['package_id'] = package_id
                     result['package_name'] = package_name
-                    result['bucket_name'] = s3_bucket_name
+                    result['bucket_name'] = self.s3_bucket_name
                     result['synonym_file'] = synonym_file
                     result['domain_name'] = domain_name
-                    result['package_version'] = package['package_version']
+                    result['package_version'] = package.get('package_version', '1')
                     result['package_status'] = package_available['package_status']
                     result['domain_package_status'] = package_associated['domain_package_status']
 
@@ -473,7 +492,46 @@ class PackageManager:
 
         return response
 
-    def _dessociate_package(self, package_id: str, domain_name: str):
+    def _reindex_with_synonyms(self, package_id):
+        try:
+            # 동의어 사전 포함 매핑 로드
+            new_mapping = self._load_mapping_file('database_schema_with_synonyms.json')
+            if not new_mapping:
+                raise ValueError("매핑 파일 로드 실패")
+
+            # synonyms_path에 package_id 동적 삽입
+            new_mapping['settings']['analysis']['filter']['synonym_filter']['synonyms_path'] = f"analyzers/{package_id}"
+
+            # 새 인덱스 생성
+            new_index = "schema_info_v2"
+            if not self.os_client.indices.exists(index=new_index):
+                self.os_client.indices.create(index=new_index, body=new_mapping)
+                st.info("새 인덱스 생성 완료")
+
+            # 기존 인덱스가 존재하는지 확인 후 재인덱싱
+            old_index = "schema_info"
+            if self.os_client.indices.exists(index=old_index):
+                reindex_body = {
+                    "source": {"index": old_index},
+                    "dest": {"index": new_index}
+                }
+                self.os_client.reindex(body=reindex_body)
+                st.info("재인덱싱 진행 중...")
+
+                # 기존 인덱스 삭제 및 별칭 설정
+                self.os_client.indices.delete(index=old_index)
+                self.os_client.indices.put_alias(index=new_index, name=old_index)
+                st.success("재인덱싱 및 별칭 설정 완료")
+            else:
+                # 기존 인덱스가 없으면 새 인덱스를 기본 인덱스로 설정
+                self.os_client.indices.put_alias(index=new_index, name=old_index)
+                st.success("새 인덱스 설정 완료")
+
+        except Exception as e:
+            st.error(f"재인덱싱 중 오류 발생: {e}")
+            raise
+
+    def _dissociate_package(self, package_id: str, domain_name: str):
         response = self.opensearch_client.dissociate_package(
             PackageID=package_id,
             DomainName=domain_name
