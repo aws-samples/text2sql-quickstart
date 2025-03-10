@@ -244,6 +244,36 @@ Resources:
         EnforceHTTPS: true
       DomainName: !Sub "text2sql-${AWS::StackName}"
 
+  SynonymsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "text2sql-synonyms-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldFiles
+            Status: Enabled
+            ExpirationInDays: 365
+
+  SynonymsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SynonymsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+            Resource: !Sub "arn:aws:s3:::${SynonymsBucket}/*"
+
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
