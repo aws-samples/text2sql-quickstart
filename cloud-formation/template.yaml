@@ -23,7 +23,7 @@ Parameters:
     Description: Master username for Redshift cluster
   OpenSearchMasterUsername:
     Type: String
-    Default: opensearch_user
+    Default: admin
     Description: Master username for OpenSearch domain
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<String>
@@ -31,34 +31,77 @@ Parameters:
     Description: Latest Amazon Linux 2023 AMI from SSM Parameter Store
 
 Resources:
-  RedshiftVPC:
+  Text2SQLVPC:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/24
       EnableDnsSupport: true
       EnableDnsHostnames: true
 
-  PublicSubnet:
+  PublicSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       CidrBlock: 10.0.0.0/26
       MapPublicIpOnLaunch: true
       AvailabilityZone: !Sub "${AWS::Region}a"
 
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Text2SQLVPC
+      CidrBlock: 10.0.0.192/26  # 기존 10.0.0.0/26과 겹치지 않게
+      AvailabilityZone: !Sub "${AWS::Region}b"  # 두 번째 AZ
+      MapPublicIpOnLaunch: true
+
   PrivateSubnet1:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       CidrBlock: 10.0.0.64/26
       AvailabilityZone: !Sub "${AWS::Region}a"
 
   PrivateSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       CidrBlock: 10.0.0.128/26
       AvailabilityZone: !Sub "${AWS::Region}b"
+
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet1  # 퍼블릭 서브넷에 배치
+      AllocationId: !GetAtt EIP.AllocationId
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Text2SQLVPC
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1  # EC2와 Redshift가 공유
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2  # Redshift용
+      RouteTableId: !Ref PrivateRouteTable
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
@@ -66,13 +109,13 @@ Resources:
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       InternetGatewayId: !Ref InternetGateway
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -81,48 +124,43 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  PublicSubnetRouteTableAssociation:
+  PublicSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
 
   RedshiftSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for Redshift cluster
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 5439
           ToPort: 5439
-          CidrIp: 10.0.0.0/24
-
-  OpenSearchSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for OpenSearch domain
-      VpcId: !Ref RedshiftVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 10.0.0.0/24
+          SourceSecurityGroupId: !Ref EC2SecurityGroup  # EC2에서만 접근
 
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for EC2 instance with Streamlit
-      VpcId: !Ref RedshiftVPC
+      VpcId: !Ref Text2SQLVPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 0.0.0.0/0  # SSH는 임시로 개방, 나중에 제한 가능
         - IpProtocol: tcp
           FromPort: 8501
           ToPort: 8501
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref ALBSecurityGroup  # ALB만 허용
       SecurityGroupEgress:
         - IpProtocol: -1
           FromPort: 0
@@ -184,9 +222,6 @@ Resources:
         EBSEnabled: true
         VolumeSize: 10
         VolumeType: gp3
-      VPCOptions:
-        SubnetIds: [!Ref PrivateSubnet1]
-        SecurityGroupIds: [!Ref OpenSearchSecurityGroup]
       AccessPolicies:
         Version: "2012-10-17"
         Statement:
@@ -205,16 +240,65 @@ Resources:
         Enabled: true
       EncryptionAtRestOptions:
         Enabled: true
-      DomainEndpointOptions:  # HTTPS 강제 추가
+      DomainEndpointOptions:
         EnforceHTTPS: true
       DomainName: !Sub "text2sql-${AWS::StackName}"
 
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ALB
+      VpcId: !Ref Text2SQLVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Scheme: internet-facing
+
+  TargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      DependsOn: EC2Instance  # EC2가 먼저 생성되도록
+      Properties:
+        VpcId: !Ref Text2SQLVPC
+        Port: 8501
+        Protocol: HTTP
+        TargetType: instance
+        HealthCheckPath: /
+        HealthCheckPort: 8501
+        HealthCheckProtocol: HTTP
+        Targets:  # 추가
+          - Id: !Ref EC2Instance  # EC2 인스턴스 ID 참조
+            Port: 8501
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
   EC2Instance:
     Type: AWS::EC2::Instance
+    DependsOn:
+      - RedshiftCluster
+      - OpenSearchDomain
     Properties:
       InstanceType: t3.micro
       ImageId: !Ref LatestAmiId
-      SubnetId: !Ref PublicSubnet
+      SubnetId: !Ref PrivateSubnet1  # PrivateSubnetEC2 대신 PrivateSubnet1 사용
       SecurityGroupIds: [!Ref EC2SecurityGroup]
       KeyName: !Ref EC2KeyPair
       IamInstanceProfile: !Ref EC2InstanceProfile
@@ -232,32 +316,37 @@ Resources:
             echo "Waiting for network... ($i/30)" >> /var/log/userdata.log
             sleep 1
           done
-          dnf update -y >> /var/log/userdata.log 2>&1 || echo "dnf update failed" >> /var/log/userdata.log
-          dnf install -y python3 python3-pip git >> /var/log/userdata.log 2>&1 || echo "dnf install failed" >> /var/log/userdata.log
+          sudo dnf clean all >> /var/log/userdata.log 2>&1
+          sudo dnf update -y >> /var/log/userdata.log 2>&1 || echo "dnf update failed" >> /var/log/userdata.log
+          sudo dnf install -y python3 python3-pip git >> /var/log/userdata.log 2>&1 || echo "dnf install failed" >> /var/log/userdata.log
           mkdir -p /home/ec2-user/text2sql-quickstart
           chown ec2-user:ec2-user /home/ec2-user/text2sql-quickstart
-          git clone https://github.com/aws-samples/text2sql-quickstart.git /home/ec2-user/text2sql-quickstart >> /var/log/userdata.log 2>&1 || echo "git clone failed" >> /var/log/userdata.log
-          cd /home/ec2-user/text2sql-quickstart
+          cd /home/ec2-user
+          git clone https://github.com/aws-samples/text2sql-quickstart.git >> /var/log/userdata.log 2>&1 || echo "git clone failed" >> /var/log/userdata.log
+          cd text2sql-quickstart
           /usr/bin/pip3 install -r requirements.txt --user >> /var/log/userdata.log 2>&1 || echo "pip install failed" >> /var/log/userdata.log
-          echo "OPENSEARCH_HOST=${OpenSearchDomain.DomainEndpoint}" >> .env
-          echo "OPENSEARCH_USERNAME=${OpenSearchMasterUsername}" >> .env
-          echo "OPENSEARCH_PASSWORD=${OpenSearchMasterPassword}" >> .env
-          echo "OPENSEARCH_DOMAIN=text2sql-${AWS::StackName}" >> .env
-          echo "REDSHIFT_HOST=${RedshiftCluster.Endpoint.Address}" >> .env
-          echo "REDSHIFT_DATABASE=${DatabaseName}" >> .env
-          echo "REDSHIFT_USERNAME=${MasterUsername}" >> .env
-          echo "REDSHIFT_PASSWORD=${MasterUserPassword}" >> .env
+          # .env 파일을 새로 생성 (덮어쓰기)
+          cat > .env << EOF
+          OPENSEARCH_HOST=${OpenSearchDomain.DomainEndpoint}
+          OPENSEARCH_USERNAME=${OpenSearchMasterUsername}
+          OPENSEARCH_PASSWORD=${OpenSearchMasterPassword}
+          OPENSEARCH_DOMAIN=text2sql-${AWS::StackName}
+          REDSHIFT_HOST=${RedshiftCluster.Endpoint.Address}
+          REDSHIFT_DATABASE=${DatabaseName}
+          REDSHIFT_USERNAME=${MasterUsername}
+          REDSHIFT_PASSWORD=${MasterUserPassword}
+          EOF
           echo "Starting Streamlit" >> /var/log/userdata.log
           nohup /usr/bin/python3 -m streamlit run app.py --server.port 8501 >> /var/log/userdata.log 2>&1 &
           echo "UserData script completed" >> /var/log/userdata.log
 
 Outputs:
-  EC2PublicIP:
-    Description: Public IP of the EC2 instance
-    Value: !GetAtt EC2Instance.PublicIp
   RedshiftEndpoint:
     Description: Endpoint of the Redshift cluster
     Value: !GetAtt RedshiftCluster.Endpoint.Address
   OpenSearchEndpoint:
     Description: Endpoint of the OpenSearch domain
     Value: !GetAtt OpenSearchDomain.DomainEndpoint
+  LoadBalancerDNS:
+    Description: DNS name of the Application Load Balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
