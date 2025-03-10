@@ -130,7 +130,7 @@ class DisplayManager:
             st.write(data)
 
     @staticmethod
-    def display_schema_info(schema_data: Dict, title: str = None) -> None:
+    def display_database_schema(schema_data: Dict, title: str = None) -> None:
         """스키마 정보를 보기 좋게 표시"""
         try:
             if title:

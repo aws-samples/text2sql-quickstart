@@ -22,7 +22,7 @@ class SearchValidator:
                 }
 
             # 스키마 정보와 샘플 쿼리 확인
-            schema_info = search_results.get('schema_info', {})
+            database_schema = search_results.get('database_schema', {})
             sample_queries = search_results.get('sample_queries', [])
             user_feedback = search_results.get('user_feedback_queries', [])
 
@@ -83,8 +83,8 @@ class SearchValidator:
             }
 
             # 스키마 정보 확인
-            schema_info = search_results.get('schema_info', {})
-            related_tables = schema_info.get('related_tables', [])
+            database_schema = search_results.get('database_schema', {})
+            related_tables = database_schema.get('related_tables', [])
             if not related_tables:
                 return response
 

@@ -53,7 +53,7 @@ class OpenSearchManager:
         try:
             # 매핑 설정
             index_mappings = {
-                'schema_info': 'schema_info.json',
+                'database_schema': 'database_schema.json',
                 'sample_queries': 'sample_queries.json',
                 'business_glossary': 'business_glossary.json'
             }
@@ -139,7 +139,7 @@ class OpenSearchManager:
     def clear_indices(self) -> bool:
         """Clear all indices"""
         try:
-            indices = ['schema_info', 'sample_queries', 'business_glossary']
+            indices = ['database_schema', 'sample_queries', 'business_glossary']
             for index in indices:
                 if self.client.indices.exists(index=index):
                     self.client.indices.delete(index=index)
@@ -157,7 +157,7 @@ class OpenSearchManager:
             with ThreadPoolExecutor(max_workers=3) as executor:
                 # 각 검색 작업을 병렬로 실행
                 futures = {
-                    executor.submit(self._search_schema, query, top_k): 'schema_info',
+                    executor.submit(self._search_schema, query, top_k): 'database_schema',
                     executor.submit(self._search_queries, query, top_k): 'sample_queries',
                     executor.submit(self._search_user_feedback_queries, query, top_k): 'user_feedback_queries'
                 }
@@ -259,7 +259,7 @@ class OpenSearchManager:
             }
         }
 
-        response = self.client.search(index='schema_info', body=search_body)
+        response = self.client.search(index='database_schema', body=search_body)
         return response
 
     def _semantic_schema_search(self, query: str):
@@ -300,7 +300,7 @@ class OpenSearchManager:
         }
 
         results = self.client.search(
-            index="schema_info",
+            index="database_schema",
             body=search_body
         )
 
@@ -463,7 +463,7 @@ class OpenSearchManager:
 
     def _count_all_tables(self) -> int:
         response = self.client.count(
-            index="schema_info"
+            index="database_schema"
         )
         return response['count']
 
@@ -477,7 +477,7 @@ class OpenSearchManager:
             }
         }
         response = self.client.search(
-            index="schema_info",
+            index="database_schema",
             body=search_body
         )
 

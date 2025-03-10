@@ -14,11 +14,11 @@ class SQLValidator:
             self.db = redshift_manager.db
         self.validation_cache = {}  # 검증 결과 캐시
 
-    def validate(self, sql: str, schema_info: Dict = None) -> Dict[str, Any]:
+    def validate(self, sql: str, database_schema: Dict = None) -> Dict[str, Any]:
         """SQL 쿼리 검증"""
         try:
             # 캐시된 검증 결과가 있는지 확인
-            cache_key = f"{sql}_{hash(str(schema_info))}"
+            cache_key = f"{sql}_{hash(str(database_schema))}"
             if cache_key in self.validation_cache:
                 return self.validation_cache[cache_key]
 

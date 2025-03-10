@@ -34,7 +34,7 @@ from langchain_aws import BedrockLLM
 from config import AWS_REGION, BEDROCK_MODELS, OPENSEARCH_CONFIG
 
 # 상수 정의
-index_name = 'schema_info'
+index_name = 'database_schema'
 DEFAULT_TOP_K = 5
 
 # 공유 리소스 초기화
@@ -190,7 +190,7 @@ def process_schema_file(schema_content: Dict) -> bool:
 
             # 5. 스키마 정보 표시
             st.write("### 📊 Schema Details")
-            st.session_state.display_manager.display_schema_info(augmented_schema)
+            st.session_state.display_manager.display_database_schema(augmented_schema)
 
             return True
 
@@ -220,7 +220,7 @@ def render_upload_page():
             if st.button("Load Selected Version"):
                 schema = st.session_state.schema_manager.load_schema_version(selected_version)
                 if schema:
-                    st.session_state.display_manager.display_schema_info(schema)
+                    st.session_state.display_manager.display_database_schema(schema)
         else:
             st.info("No version history available")
 

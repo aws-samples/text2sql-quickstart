@@ -153,15 +153,15 @@ class SQLGenerator:
             )
             self.system_prompt_initialized = True
 
-    def generate_sql(self, question: str, schema_info: Dict) -> Dict[str, Any]:
+    def generate_sql(self, question: str, database_schema: Dict) -> Dict[str, Any]:
         """자연어 질문을 SQL로 변환"""
         try:
             sql_generate_prompt = format_prompt(
                 self.prompts['sql_generation']['prompt'],
                 question=question,
-                tables=schema_info['schema_info']['tables'],
-                related_tables=schema_info['schema_info']['related_tables'],
-                sample_queries=schema_info['sample_queries']
+                tables=database_schema['database_schema']['tables'],
+                related_tables=database_schema['database_schema']['related_tables'],
+                sample_queries=database_schema['sample_queries']
             )
 
             # 주기적으로만 토큰 제한 관리 수행 (10분 간격)

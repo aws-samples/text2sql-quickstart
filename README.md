@@ -55,7 +55,7 @@ Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다�
 ### Other preparations
 
 #### 1. Sample Schema + Sample Queries
-* 위치: sample-data/multi_schema_info.json 파일에 Redshift 테이블(users, transactions)의 스키마 정의 포함.
+* 위치: sample-data/multi_database_schema.json 파일에 Redshift 테이블(users, transactions)의 스키마 정의 포함.
 * 사용: Text2SQL 모델이 테이블 구조를 이해하는 데 필요.
 * 샘플 스키마와 쿼리들은 애플리케이션이 실행되면 업로드가 가능하므로 하단의 Execution Examples을 참조.
 

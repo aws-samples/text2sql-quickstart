@@ -148,7 +148,7 @@ class TextToSQLFlow:
                 ) or {}
                 
                 # 검색 결과가 비어있는 경우
-                if not search_results or not search_results.get('schema_info'):
+                if not search_results or not search_results.get('database_schema'):
                     return {
                         **state,
                         "current_step": "complete",
@@ -220,7 +220,7 @@ class TextToSQLFlow:
 
             sql_response = self.sql_generator.generate_sql(
                 question=state["query"],
-                schema_info=state["search_results"]
+                database_schema=state["search_results"]
             )
 
             if "error" in sql_response:

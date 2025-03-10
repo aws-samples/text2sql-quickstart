@@ -31,31 +31,7 @@ table_analysis:
                     "korean": ["비즈니스 용어 동의어 목록"],
                     "english": ["Business terms synonyms"]
                 }
-            },
-            "related_terms": {
-                "korean": ["연관 용어 목록"],
-                "english": ["Related terms"]
-            },
-            "common_queries": {
-                "korean": ["자주 사용되는 쿼리 패턴 설명"],
-                "english": ["Common query pattern descriptions"]
-            },
-            "query_patterns": [
-                {
-                    "pattern": {
-                        "korean": "쿼리 패턴 설명",
-                        "english": "Query pattern description"
-                    },
-                    "related_keywords": {
-                        "korean": ["관련 키워드"],
-                        "english": ["Related keywords"]
-                    },
-                    "variations": {
-                        "korean": ["패턴 변형"],
-                        "english": ["Pattern variations"]
-                    }
-                }
-            ]
+            }
         }
     }
 
@@ -86,6 +62,8 @@ column_analysis:
             "korean": "컬럼에 대한 상세한 한글 설명",
             "english": "Detailed column description"
         },
+        "examples": "예시 값 문자열",
+        "valid_values": ["유효한 값 목록"],
         "business_context": {
             "korean": "비즈니스 관점에서의 상세 설명",
             "english": "Business context description"
@@ -106,60 +84,11 @@ column_analysis:
                         "korean": "값의 한글 의미 설명",
                         "english": "Value meaning in English"
                     }
-                ],
-                "status_codes": [
-                    {
-                        "code": "상태 코드",
-                        "korean": "상태 코드의 한글 설명",
-                        "english": "Status code description"
-                    }
                 ]
             },
             "business_terms": {
                 "korean": ["비즈니스 용어 동의어 목록"],
                 "english": ["Business terms synonyms"]
-            }
-        },
-        "search_patterns": [
-            {
-                "pattern": {
-                    "korean": "검색 패턴 설명",
-                    "english": "Search pattern description"
-                },
-                "related_keywords": {
-                    "korean": ["관련 키워드"],
-                    "english": ["Related keywords"]
-                },
-                "variations": {
-                    "korean": ["패턴 변형"],
-                    "english": ["Pattern variations"]
-                }
-            }
-        ],
-        "common_conditions": [
-            {
-                "condition": {
-                    "korean": "일반적인 조건절 설명",
-                    "english": "Common condition description"
-                },
-                "examples": [
-                    {
-                        "sql": "SQL 조건식",
-                        "korean": "조건식 설명",
-                        "english": "Condition explanation"
-                    }
-                ],
-                "use_cases": {
-                    "korean": ["활용 사례"],
-                    "english": ["Use cases"]
-                }
-            }
-        ],
-        "constraints": {
-            "type": "제약조건 유형",
-            "description": {
-                "korean": "제약조건 설명",
-                "english": "Constraint description"
             }
         }
     }
@@ -167,14 +96,12 @@ column_analysis:
     Requirements:
     1. Provide all descriptions in both Korean and English
     2. For value_meanings, include all possible values and their business meanings
-    3. For status codes, provide clear explanations of each status
-    4. Include common SQL conditions and their business purposes
-    5. Document typical search patterns and variations
-    6. Explain technical constraints in business-friendly terms
-    7. Include domain-specific terminology and common usage
-    8. Consider various query scenarios and use cases
-    9. Provide clear examples for complex conditions
-    10. Include relevant business rules and validations
+    3. Include examples and valid_values from the provided schema
+    4. Include domain-specific terminology and common usage
+    5. Consider various business scenarios and use cases
+    6. Provide search-optimized keywords in both languages
+    7. Ensure natural and fluent expressions in both languages
+    8. For abbreviations or technical terms, include full explanations
 
 query_analysis:
   prompt: |

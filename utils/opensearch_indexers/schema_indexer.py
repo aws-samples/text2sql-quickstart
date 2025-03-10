@@ -173,7 +173,7 @@ def index_schema(client, embedder, schema_data: Dict, version_id: str = None) ->
 
             # OpenSearch에 문서 인덱싱
             client.index(
-                index='schema_info',
+                index='database_schema',
                 body=document,
                 id=f"{document['version_id']}_{table['table_name']}"
             )
