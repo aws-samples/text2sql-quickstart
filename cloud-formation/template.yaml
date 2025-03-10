@@ -247,7 +247,7 @@ Resources:
   SynonymsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "text2sql-synonyms-${AWS::AccountId}"
+      BucketName: !Sub "text2sql-synonyms-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
