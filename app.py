@@ -321,7 +321,7 @@ def render_synonym_dict():
 
     # OpenSearch 인덱스 확인
     opensearch_manager = st.session_state.shared_resources['opensearch_manager']
-    index_exists = opensearch_manager.os_client.indices.exists(index='database_schema')
+    index_exists = opensearch_manager.client.indices.exists(index='database_schema')
 
     if not index_exists:
         st.warning("""
