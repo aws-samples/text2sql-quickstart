@@ -142,7 +142,6 @@ def check_system_status():
     }
 
 def process_schema_file(schema_content: Dict) -> bool:
-    """스키마 파일 처리"""
     try:
         status_container = st.empty()
         progress_container = st.empty()
@@ -150,23 +149,27 @@ def process_schema_file(schema_content: Dict) -> bool:
         with st.expander("🔍 처리 로그", expanded=True):
             log_container = st.empty()
 
-            # 1. 스키마 증강 (아직 증강되지 않은 테이블만)
-            status_container.info("🔄 스키마 증강 중...")
-            augmented_schema = st.session_state.schema_augmenter.augment_all_tables(schema_content)
-
-            # 2. Redshift 테이블 생성
+            # 1. Redshift 테이블 생성 (원본 스키마)
             status_container.info("📝 Redshift 테이블 생성 중...")
-            tables = augmented_schema['database_schema']['tables']
+            tables = schema_content['database_schema']['tables']
             total_tables = len(tables)
 
             for idx, table in enumerate(tables):
-                progress = (idx + 1) / total_tables
+                progress = (idx + 1) / total_tables / 2  # 테이블 생성 50%
                 progress_container.progress(progress)
-                log_container.write(f"테이블 처리 중: {table['table_name']}")
+                table_name = table['table_name']
+                log_container.write(f"테이블 생성 중: {table_name}")
 
                 if not st.session_state.redshift_manager.create_table_in_redshift(table):
-                    status_container.error(f"❌ 테이블 생성 실패: {table['table_name']}")
+                    status_container.error(f"❌ 테이블 생성 실패: {table_name}")
                     return False
+                log_container.write(f"테이블 생성 완료: {table_name}")
+
+            # 2. 스키마 증강
+            status_container.info("🔄 스키마 증강 중...")
+            augmented_schema = st.session_state.schema_augmenter.augment_all_tables(schema_content)
+            log_container.write("스키마 증강 완료")
+            progress_container.progress(0.75)  # 증강 후 75%
 
             # 3. 스키마 저장
             status_container.info("💾 스키마 정보 저장 중...")
@@ -179,12 +182,15 @@ def process_schema_file(schema_content: Dict) -> bool:
             ):
                 status_container.error("❌ 스키마 저장 실패")
                 return False
+            log_container.write("스키마 저장 완료")
 
-            # 4. OpenSearch 인덱싱 (이미 증강된 데이터 사용)
+            # 4. OpenSearch 인덱싱
             status_container.info("🔍 OpenSearch 인덱싱 중...")
             if not st.session_state.shared_resources['opensearch_manager'].index_schema(augmented_schema, version_id):
                 status_container.error("❌ 스키마 인덱싱 실패")
                 return False
+            log_container.write("OpenSearch 인덱싱 완료 (인덱스: database_schema)")
+            progress_container.progress(1.0)
 
             status_container.success("✅ 스키마 처리가 완료되었습니다!")
 
@@ -236,26 +242,6 @@ def render_upload_page():
             st.subheader("📄 Schema Preview")
             st.session_state.display_manager.display_json(schema_content)
 
-
-        except Exception as e:
-            st.session_state.display_manager.display_error(e, "파일 처리 중 오류가 발생했습니다")
-
-def render_glossary_page():
-    """비즈니스 용어 사전 업로드 페이지 렌더링"""
-    st.header("📚 Business Glossary Upload")
-
-    uploaded_file = st.file_uploader("Upload Business Glossary JSON", type=['json'])
-    if uploaded_file is not None:
-        try:
-            glossary_data = json.load(uploaded_file)
-            st.subheader("📄 Glossary Preview")
-            st.session_state.display_manager.display_json(glossary_data)
-
-            if st.button("Process Glossary"):
-                if st.session_state.shared_resources['opensearch_manager'].index_business_glossary(glossary_data):
-                    st.success("✅ 비즈니스 용어 사전이 성공적으로 처리되었습니다.")
-                else:
-                    st.error("❌ 비즈니스 용어 사전 처리 실패")
 
         except Exception as e:
             st.session_state.display_manager.display_error(e, "파일 처리 중 오류가 발생했습니다")

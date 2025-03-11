@@ -12,8 +12,7 @@ from utils.bedrock_embeddings import BedrockEmbeddings
 from utils.opensearch_indexers import (
     index_schema,
     index_sample_queries,
-    index_user_feedback_queries,
-    index_business_glossary
+    index_user_feedback_queries
 )
 
 class OpenSearchManager:
@@ -54,8 +53,7 @@ class OpenSearchManager:
             # 매핑 설정
             index_mappings = {
                 'database_schema': 'database_schema.json',
-                'sample_queries': 'sample_queries.json',
-                'business_glossary': 'business_glossary.json'
+                'sample_queries': 'sample_queries.json'
             }
 
             for index, mapping_file in index_mappings.items():
@@ -121,12 +119,6 @@ class OpenSearchManager:
             return False
         return index_user_feedback_queries(self.client, self.embedder, feedback_data, version_id)
 
-    def index_business_glossary(self, glossary_data: List[Dict]) -> bool:
-        """Index business glossary terms using the glossary indexer"""
-        if not self.create_indices():
-            return False
-        return index_business_glossary(self.client, self.embedder, self.augmenter, glossary_data)
-
     def test_connection(self) -> bool:
         """Test OpenSearch connection"""
         try:
@@ -139,7 +131,7 @@ class OpenSearchManager:
     def clear_indices(self) -> bool:
         """Clear all indices"""
         try:
-            indices = ['database_schema', 'sample_queries', 'business_glossary']
+            indices = ['database_schema', 'sample_queries']
             for index in indices:
                 if self.client.indices.exists(index=index):
                     self.client.indices.delete(index=index)

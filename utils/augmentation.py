@@ -195,7 +195,7 @@ class SchemaAugmenter:
                 return schema_data
 
             if 'tables' not in augmented_schema['database_schema']:
-                st.error("database_schema에 'tables' 키가 없습니다.")
+                st.error("database_schema 키에 'tables' 키가 없습니다.")
                 return schema_data
 
             tables = augmented_schema['database_schema']['tables']
