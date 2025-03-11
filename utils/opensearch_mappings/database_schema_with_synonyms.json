@@ -21,7 +21,7 @@
             "filter": {
                 "synonym_filter": {
                     "type": "synonym",
-                    "synonyms_path": "analyzers/{package_id}",  # 동적으로 채워질 부분
+                    "synonyms_path": "analyzers/{package_id}",
                     "updateable": true
                 }
             }

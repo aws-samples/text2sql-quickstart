@@ -494,38 +494,45 @@ class PackageManager:
 
     def _reindex_with_synonyms(self, package_id):
         try:
-            # 동의어 사전 포함 매핑 로드
-            new_mapping = self._load_mapping_file('database_schema_with_synonyms.json')
-            if not new_mapping:
+            # 인덱스별 매핑 로드
+            db_mapping = self._load_mapping_file('database_schema_with_synonyms.json')
+            query_mapping = self._load_mapping_file('sample_queries_with_synonyms.json')
+
+            if not db_mapping or not query_mapping:
                 raise ValueError("매핑 파일 로드 실패")
 
-            # synonyms_path에 package_id 동적 삽입
-            new_mapping['settings']['analysis']['filter']['synonym_filter']['synonyms_path'] = f"analyzers/{package_id}"
+            # 동의어 경로 설정
+            for mapping in [db_mapping, query_mapping]:
+                if 'settings' in mapping and 'analysis' in mapping['settings'] and 'filter' in mapping['settings'][
+                    'analysis']:
+                    mapping['settings']['analysis']['filter']['synonym_filter'][
+                        'synonyms_path'] = f"analyzers/{package_id}"
 
-            # 새 인덱스 생성
-            new_index = "database_schema_v2"
-            if not self.os_client.indices.exists(index=new_index):
-                self.os_client.indices.create(index=new_index, body=new_mapping)
-                st.info("새 인덱스 생성 완료")
+            # 재인덱싱 함수 정의
+            def reindex_index(old_index, new_index, mapping):
+                if not self.os_client.indices.exists(index=new_index):
+                    self.os_client.indices.create(index=new_index, body=mapping)
+                    st.info(f"새 인덱스 생성 완료: {new_index}")
 
-            # 기존 인덱스가 존재하는지 확인 후 재인덱싱
-            old_index = "database_schema"
-            if self.os_client.indices.exists(index=old_index):
-                reindex_body = {
-                    "source": {"index": old_index},
-                    "dest": {"index": new_index}
-                }
-                self.os_client.reindex(body=reindex_body)
-                st.info("재인덱싱 진행 중...")
+                if self.os_client.indices.exists(index=old_index):
+                    reindex_body = {
+                        "source": {"index": old_index},
+                        "dest": {"index": new_index}
+                    }
+                    self.os_client.reindex(body=reindex_body)
+                    st.info(f"재인덱싱 진행 중: {old_index} -> {new_index}")
+                    self.os_client.indices.delete(index=old_index)
+                    self.os_client.indices.put_alias(index=new_index, name=old_index)
+                    st.success(f"재인덱싱 및 별칭 설정 완료: {old_index}")
+                else:
+                    self.os_client.indices.put_alias(index=new_index, name=old_index)
+                    st.success(f"새 인덱스 설정 완료: {old_index}")
 
-                # 기존 인덱스 삭제 및 별칭 설정
-                self.os_client.indices.delete(index=old_index)
-                self.os_client.indices.put_alias(index=new_index, name=old_index)
-                st.success("재인덱싱 및 별칭 설정 완료")
-            else:
-                # 기존 인덱스가 없으면 새 인덱스를 기본 인덱스로 설정
-                self.os_client.indices.put_alias(index=new_index, name=old_index)
-                st.success("새 인덱스 설정 완료")
+            # database_schema 재인덱싱
+            reindex_index("database_schema", "database_schema_v2", db_mapping)
+
+            # sample_queries 재인덱싱
+            reindex_index("sample_queries", "sample_queries_v2", query_mapping)
 
         except Exception as e:
             st.error(f"재인덱싱 중 오류 발생: {e}")

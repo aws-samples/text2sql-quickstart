@@ -44,7 +44,7 @@ aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0]
 5. `OpenSearchUsername`: OpenSearch 마스터 사용자 이름 (예: admin).
 6. `LoadBalancerDNS`: ALB DNS 이름 (애플리케이션 접속용).
 
-#### 2.OpenSearch 도메인에 `analysis-nori` 플러그인 추가
+#### 2. OpenSearch 도메인에 `analysis-nori` 플러그인 추가
 
 `analysis-nori` 플러그인은 한국어 텍스트 분석을 지원하며, OpenSearch 도메인에서 기본 설치되지 않습니다. 아래 단계로 수동 추가하세요.
 

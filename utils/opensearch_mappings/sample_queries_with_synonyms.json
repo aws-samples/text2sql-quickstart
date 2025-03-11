@@ -15,7 +15,14 @@
                 "korean_search_analyzer": {
                     "type": "custom",
                     "tokenizer": "nori_tokenizer",
-                    "filter": ["nori_readingform", "lowercase"]
+                    "filter": ["nori_readingform", "lowercase", "synonym_filter"]
+                }
+            },
+            "filter": {
+                "synonym_filter": {
+                    "type": "synonym",
+                    "synonyms_path": "analyzers/{package_id}",
+                    "updateable": true
                 }
             }
         }
