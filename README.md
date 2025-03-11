@@ -24,8 +24,12 @@ Redshift 클러스터와 OpenSearch 도메인을 CloudFormation으로 배포합�
 aws cloudformation create-stack \
   --stack-name Text2SQLStack \
   --template-body file://cloud-formation/template.yaml \
-  --parameters ParameterKey=MasterUserPassword,ParameterValue=<YourPass123> \
-  --region ap-northeast-2
+  --parameters \
+    ParameterKey=MasterUserPassword,ParameterValue=<YourPass123> \
+    ParameterKey=OpenSearchMasterPassword,ParameterValue=<YourOpenSearchPass123> \
+    ParameterKey=EC2KeyPair,ParameterValue=<my-key-pair> \
+  --region ap-northeast-2 \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 Password는 최소 8자 이상, 대문자/소문자/숫자를 포함해야 합니다(예: YourPass123).
 배포는 약 10~15분 소요되며, 진행 상황은 AWS Management Console의 CloudFormation에서 확인 가능합니다.
@@ -36,9 +40,9 @@ aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0]
 * RedshiftClusterEndpoint: Redshift 연결 엔드포인트 (예: my-redshift-cluster.xxx.ap-northeast-2.redshift.amazonaws.com:5439).
 * RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: dev).
 * RedshiftUsername: Redshift 마스터 사용자 이름 (예: admin).
-* OpenSearchDomainEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
+* OpenSearchEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
 * OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
-* BedrockRoleArn: Bedrock API 호출용 IAM 역할 ARN.
+* LoadBalancerDNS: ALB DNS 이름 (애플리케이션 접속용).
 
 #### 2. Bedrock 파운데이션 모델 활성화
 Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다음 단계를 따라 필요한 모델을 활성화 하세요.

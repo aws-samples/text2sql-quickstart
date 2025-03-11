@@ -212,8 +212,19 @@ Resources:
                   - s3:DeleteObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub "arn:aws:s3:::text2sql-synonyms-${AWS::AccountId}-${AWS::Region}"
-                  - !Sub "arn:aws:s3:::text2sql-synonyms-${AWS::AccountId}-${AWS::Region}/*"
+                  - !Sub "arn:aws:s3:::text2sql-synonyms-${AWS::AccountId}"
+                  - !Sub "arn:aws:s3:::text2sql-synonyms-${AWS::AccountId}/*"
+        - PolicyName: SSMAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:StartSession
+                  - ssm:SendCommand
+                  - ssm:GetConnectionStatus
+                  - ssm:DescribeInstanceInformation
+                Resource: "*"
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -273,10 +284,22 @@ Resources:
         EnforceHTTPS: true
       DomainName: !Sub "text2sql-${AWS::StackName}"
 
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Text2SQLVPC
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+
   SynonymsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "text2sql-synonyms-${AWS::AccountId}-${AWS::Region}"
+      BucketName: !Sub "text2sql-synonyms-${AWS::AccountId}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -403,9 +426,18 @@ Outputs:
   RedshiftEndpoint:
     Description: Endpoint of the Redshift cluster
     Value: !GetAtt RedshiftCluster.Endpoint.Address
+  RedshiftDatabaseName:
+    Description: Name of the Redshift database
+    Value: !Ref DatabaseName
+  RedshiftUsername:
+    Description: Master username for Redshift cluster
+    Value: !Ref MasterUsername
   OpenSearchEndpoint:
     Description: Endpoint of the OpenSearch domain
     Value: !GetAtt OpenSearchDomain.DomainEndpoint
+  OpenSearchUsername:
+    Description: Master username for OpenSearch domain
+    Value: !Ref OpenSearchMasterUsername
   LoadBalancerDNS:
     Description: DNS name of the Application Load Balancer
     Value: !GetAtt ApplicationLoadBalancer.DNSName
