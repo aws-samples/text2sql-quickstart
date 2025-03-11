@@ -503,13 +503,13 @@ class PackageManager:
             new_mapping['settings']['analysis']['filter']['synonym_filter']['synonyms_path'] = f"analyzers/{package_id}"
 
             # 새 인덱스 생성
-            new_index = "schema_info_v2"
+            new_index = "database_schema_v2"
             if not self.os_client.indices.exists(index=new_index):
                 self.os_client.indices.create(index=new_index, body=new_mapping)
                 st.info("새 인덱스 생성 완료")
 
             # 기존 인덱스가 존재하는지 확인 후 재인덱싱
-            old_index = "schema_info"
+            old_index = "database_schema"
             if self.os_client.indices.exists(index=old_index):
                 reindex_body = {
                     "source": {"index": old_index},

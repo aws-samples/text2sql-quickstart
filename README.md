@@ -37,12 +37,12 @@ Password는 최소 8자 이상, 대문자/소문자/숫자를 포함해야 합�
 ```bash
 aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0].Outputs"
 ```
-* RedshiftClusterEndpoint: Redshift 연결 엔드포인트 (예: my-redshift-cluster.xxx.ap-northeast-2.redshift.amazonaws.com:5439).
-* RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: dev).
-* RedshiftUsername: Redshift 마스터 사용자 이름 (예: admin).
-* OpenSearchEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
-* OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
-* LoadBalancerDNS: ALB DNS 이름 (애플리케이션 접속용).
+1. RedshiftClusterEndpoint: Redshift 연결 엔드포인트 (예: my-redshift-cluster.xxx.ap-northeast-2.redshift.amazonaws.com:5439).
+2. RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: dev).
+3. RedshiftUsername: Redshift 마스터 사용자 이름 (예: admin).
+4. OpenSearchEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
+5. OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
+6. LoadBalancerDNS: ALB DNS 이름 (애플리케이션 접속용).
 
 #### 2. Bedrock 파운데이션 모델 활성화
 Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다음 단계를 따라 필요한 모델을 활성화 하세요.
