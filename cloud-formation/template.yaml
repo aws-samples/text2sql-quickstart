@@ -15,7 +15,7 @@ Parameters:
     Description: Name of an existing EC2 KeyPair to enable SSH access
   DatabaseName:
     Type: String
-    Default: dev
+    Default: text2sql
     Description: Name of the Redshift database
   MasterUsername:
     Type: String

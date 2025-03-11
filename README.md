@@ -38,7 +38,7 @@ Password는 최소 8자 이상, 대문자/소문자/숫자를 포함해야 합�
 aws cloudformation describe-stacks --stack-name Text2SQLStack --query "Stacks[0].Outputs"
 ```
 1. RedshiftClusterEndpoint: Redshift 연결 엔드포인트 (예: my-redshift-cluster.xxx.ap-northeast-2.redshift.amazonaws.com:5439).
-2. RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: dev).
+2. RedshiftDatabaseName: Redshift 데이터베이스 이름 (예: text2sql).
 3. RedshiftUsername: Redshift 마스터 사용자 이름 (예: admin).
 4. OpenSearchEndpoint: OpenSearch 엔드포인트 (예: https://search-text2sql-opensearch-xxx.ap-northeast-2.es.amazonaws.com).
 5. OpenSearchUsername: OpenSearch 마스터 사용자 이름 (예: admin).
