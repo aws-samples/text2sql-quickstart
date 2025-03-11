@@ -99,10 +99,6 @@ def render_sidebar():
                      help="Upload and manage database schemas"):
             st.session_state.page = 'upload'
 
-        if st.button("Business Glossary", use_container_width=True,
-                     help="Upload and manage business glossary"):
-            st.session_state.page = 'glossary'
-
         if st.button("Generate Test Data", use_container_width=True,
                      help="Generate and load test data into Redshift"):
             st.session_state.page = 'data_generation'
@@ -453,7 +449,7 @@ def render_clear_indices_page():
     st.header("🗑️ Clear Indices")
 
     st.warning("⚠️ This action will remove all indices from OpenSearch!")
-    st.info("This will clear all schema information, sample queries, and business glossary data.")
+    st.info("This will clear all schema information, sample queries, and user feedback queries.")
 
     if st.button("Clear All Indices", type="primary", use_container_width=True):
         try:
@@ -876,7 +872,6 @@ def main():
 
     pages = {
         'upload': render_upload_page,
-        'glossary': render_glossary_page,
         'augment': render_augment_page,
         'synonym_dict': render_synonym_dict,
         'clear_indices': render_clear_indices_page,
