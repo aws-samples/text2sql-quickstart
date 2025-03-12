@@ -834,33 +834,34 @@ def render_query_page():
                 st.error(f"성능 메트릭 표시 중 오류가 발생했습니다: {str(e)}")
 
 def render_data_generation_page():
-    """테스트 데이터 생성 페이지 렌더링"""
     st.header("🧪 Generate Test Data")
     st.write("테스트용 가상의 데이터를 생성하고 Redshift에 적재할 수 있습니다.")
 
     num_rows = st.number_input("Number of rows to generate", min_value=100, max_value=1000000, value=10000, step=1000)
-    
-    # filename을 세션 상태로 관리
+    table_name = st.selectbox("Select table to generate data for", ["users", "transactions"])
+
     if 'generated_filename' not in st.session_state:
         st.session_state.generated_filename = None
-        
+
     if st.button("Generate CSV"):
-        filename = st.session_state.data_generator.generate_csv(num_rows=num_rows)
+        if table_name == "users":
+            filename = st.session_state.data_generator.generate_users_csv(num_rows=num_rows)
+        else:  # transactions
+            filename = st.session_state.data_generator.generate_transactions_csv(num_rows=num_rows)
         if filename:
             st.session_state.generated_filename = filename
             st.success(f"✅ CSV 생성 완료: {filename}")
             st.write("생성된 데이터를 Redshift에 적재하려면 아래 버튼을 클릭하세요.")
 
-    if st.session_state.data_generator:
+    if st.session_state.generated_filename:
         if st.button("Load to Redshift"):
-            if st.session_state.generated_filename is not None:
-                success = st.session_state.data_generator.load_to_redshift(st.session_state.generated_filename)
-                if success:
-                    st.success("✅ 데이터가 성공적으로 Redshift에 적재되었습니다!")
-                else:
-                    st.error("❌ 데이터 적재 실패")
+            success = st.session_state.data_generator.load_to_redshift(st.session_state.generated_filename, table_name)
+            if success:
+                st.success("✅ 데이터가 성공적으로 Redshift에 적재되었습니다!")
             else:
-                st.error("CSV 파일을 먼저 생성하세요.")
+                st.error("❌ 데이터 적재 실패")
+        else:
+            st.error("CSV 파일을 먼저 생성하세요.")
 
 def main():
     st.set_page_config(
