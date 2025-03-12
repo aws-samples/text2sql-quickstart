@@ -413,7 +413,7 @@ def render_synonym_dict():
     with st.form("new_package_form"):
         new_package_name = st.text_input("New Package Name")
         uploaded_file = st.file_uploader("Upload your synonym file", type=["txt"])
-        st.markdown(f"**S3 Bucket:** text2sql-synonyms-{st.session_state.package_manager.account_id} (고정)")
+        st.markdown(f"**S3 Bucket Name:** text2sql-synonyms-{st.session_state.package_manager.account_id} (Fixed)")
 
         col1, col2 = st.columns(2)
         with col1:

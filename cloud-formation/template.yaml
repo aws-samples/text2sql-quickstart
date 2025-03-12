@@ -384,6 +384,9 @@ Resources:
       SecurityGroupIds: [!Ref EC2SecurityGroup]
       KeyName: !Ref EC2KeyPair
       IamInstanceProfile: !Ref EC2InstanceProfile
+      Tags:
+      - Key: Name
+        Value: !Sub "Text2SQL-EC2-${AWS::StackName}"
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
