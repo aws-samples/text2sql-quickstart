@@ -411,71 +411,63 @@ class PackageManager:
     # 패키지 생성
     def create_dictionary(self, package_name: str, synonym_file):
         result = {}
+        print(f"Starting create_dictionary: {package_name}")  # 로그 추가
         try:
             domain_name = OPENSEARCH_CONFIG.get('domain')
+            print(f"Domain: {domain_name}")
 
-            # 텍스트 사전 업로드
-            self._upload_file(file=synonym_file,
-                              bucket_name=self.s3_bucket_name,
-                              s3_key=synonym_file.name)
+            self._upload_file(synonym_file, self.s3_bucket_name, synonym_file.name)
+            print("S3 upload completed")
 
-            # 패키지 생성
             package = self.opensearch_client.create_package(
                 PackageName=package_name,
                 PackageType='TXT-DICTIONARY',
-                PackageSource={
-                    'S3BucketName': self.s3_bucket_name,
-                    'S3Key': synonym_file.name
-                }
+                PackageSource={'S3BucketName': self.s3_bucket_name, 'S3Key': synonym_file.name}
             )
-
             package_id = package['PackageDetails']['PackageID']
+            print(f"Package created: {package_id}")
 
-            # 패키지 활성화 여부 확인
-            package_available = self.wait_package_available(package_id=package_id, domain_name=domain_name)
-            if package_available:
-                # 패키지를 도메인에 연결
-                associate_response = self._associate_package(
-                    package_id=package_id,
-                    domain_name=domain_name
-                )
+            package_available = self.wait_package_available(package_id, domain_name)
+            if not package_available:
+                print("Package availability check failed")
+                return result
+            print("Package available")
 
-                # 패키지의 도메인 연결 여부 확인
-                package_associated = self.wait_package_associated(package_id=package_id, domain_name=domain_name)
+            self._associate_package(package_id, domain_name)
+            print("Package associated")
 
-                if package_associated:
-                    # 패키지 정보 데이터베이스에 입력
-                    insert_query = """
-                        INSERT INTO synonym_dictionary (
-                            package_id,
-                            package_name,
-                            s3_bucket,
-                            s3_key,
-                            domain_name
-                        )
-                        VALUES (%s, %s, %s, %s, %s)
-                    """
-                    conn = redshift_connector.connect(**self.redshift_config)
-                    cursor = conn.cursor()
-                    cursor.execute(insert_query,
-                                   (package_id, package_name, self.s3_bucket_name, synonym_file.name, domain_name))
-                    conn.commit()
+            package_associated = self.wait_package_associated(package_id, domain_name)
+            if not package_associated:
+                print("Package association failed")
+                return result
+            print("Package associated successfully")
 
-                    # 재인덱싱 호출
-                    self._reindex_with_synonyms(package_id)
+            insert_query = """
+                INSERT INTO synonym_dictionary (package_id, package_name, s3_bucket, s3_key, domain_name)
+                VALUES (%s, %s, %s, %s, %s)
+            """
+            conn = redshift_connector.connect(**self.redshift_config)
+            cursor = conn.cursor()
+            cursor.execute(insert_query,
+                           (package_id, package_name, self.s3_bucket_name, synonym_file.name, domain_name))
+            conn.commit()
+            print("Redshift insert completed")
 
-                    result['package_id'] = package_id
-                    result['package_name'] = package_name
-                    result['bucket_name'] = self.s3_bucket_name
-                    result['synonym_file'] = synonym_file
-                    result['domain_name'] = domain_name
-                    result['package_version'] = package.get('package_version', '1')
-                    result['package_status'] = package_available['package_status']
-                    result['domain_package_status'] = package_associated['domain_package_status']
+            self._reindex_with_synonyms(package_id)
+            print("Reindexing completed")
+
+            result = {
+                'package_id': package_id,
+                'package_name': package_name,
+                'bucket_name': self.s3_bucket_name,
+                'synonym_file': synonym_file.name,
+                'domain_name': domain_name
+            }
+            print(f"Package creation completed: {package_name}")
 
         except Exception as e:
-            print(f"패키지 정보 저장 중 오류가 발생했습니다: {e}")
-
+            print(f"Error in create_dictionary: {str(e)}")
+            st.error(f"Error in create_dictionary: {str(e)}")  # UI에도 출력
         return result
 
     # 패키지 도메인에 연계

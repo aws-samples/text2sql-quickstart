@@ -1,0 +1,23 @@
+당월, current month, current_month, 이번 달
+전월, previous month, previous_month, 지난 달, 이전 달
+당해, current year, current_year, 금년, 올해
+전년, previous year, previous_year, 작년, 이전 해
+이번주, this week, this_week, 금주
+정회원, normal user, normal_user, REGULAR, 가입자
+휴면회원, dormant user, dormant_user, INACTIVE, 장기 미접속 회원
+탈퇴회원, withdrawal user, withdrawal_user, DELETED, 비활성 회원
+비회원, guest user, guest_user, GUEST
+본인인증, identify verification, identify_verification, VERIFIED, 본인 확인
+SMS인증, SMS verification, sms_verification, PHONE, 전화 인증
+생체인증, biometric authentication, biometric_authentication, CARD, 생체 인증
+비밀번호 인증, PIN authentication, pin_authentication, SET
+인증수단, authentication method, authentication_method, 인증 방법
+사용자, user, user_id, 회원
+계정상태, account status, account_status
+생일연도, birth year, birth_year
+직업, occupation, job, 직업 유형
+거래유형, transaction type, transaction_type
+금액, amount, money, 거래 금액
+통화, currency, currency_type
+생성일, created at, created_at, 가입일
+최종로그인, last login at, last_login_at, 최근 접속일
