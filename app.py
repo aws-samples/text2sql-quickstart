@@ -530,27 +530,31 @@ def render_query_page():
                     }
 
                     if not result.get("success") or not result.get("sql"):
+                        user_input = st.session_state[f"user_input_{st.session_state.input_key - 1}"]
+                        suggested = []
+                        if "사용자" in user_input or "회원" in user_input:
+                            suggested.append("ACTIVE 상태인 사용자가 몇 명인가요?")
+                            suggested.append("지난 30일 동안 가입한 사용자를 보여주세요.")
+                        elif "거래" in user_input or "금액" in user_input:
+                            suggested.append("최근 한 달 동안 완료된 거래 금액 합계를 알려주세요.")
+                            suggested.append("TRANSFER 유형 거래가 몇 건인지 알려주세요.")
+                        else:
+                            suggested = [
+                                "ACTIVE 상태인 사용자가 몇 명인가요?",
+                                "지난 30일 동안 완료된 거래 금액 합계를 알려주세요.",
+                                "1990년대 출생 사용자의 최근 로그인 횟수를 보여주세요."
+                            ]
                         feedback_message = (
                             "죄송합니다. 질문하신 내용과 관련된 데이터를 찾지 못했습니다. 다음과 같이 질문을 수정해보시는 건 어떨까요?\n\n"
                             "💡 추천 방법:\n"
-                            "1. 더 구체적인 용어 사용하기\n"
-                            "2. 다른 관점에서 질문하기\n"
-                            "3. 사용 가능한 데이터 범위 내에서 질문하기\n\n"
+                            "1. 시간 범위를 명시하세요 (예: 최근 30일, 2024년).\n"
+                            "2. 사용자 상태나 거래 유형 같은 조건을 추가해보세요.\n"
+                            "3. 'users' 또는 'transactions' 테이블의 필드를 활용하세요.\n\n"
                         )
-
-                        if result.get("available_schemas"):
-                            feedback_message += "\n사용 가능한 테이블:\n"
-                            for schema in result["available_schemas"]:
-                                feedback_message += f"- {schema}\n"
-
                         assistant_message.update({
                             "feedback": feedback_message,
                             "type": "error",
-                            "suggested_questions": [
-                                "사용자 상태별 회원 수가 어떻게 되나요?",
-                                "최근 한 달간 가입한 회원 수는?",
-                                "통신사별 회원 분포를 알려주세요"
-                            ]
+                            "suggested_questions": suggested
                         })
                     else:
                         assistant_message.update({

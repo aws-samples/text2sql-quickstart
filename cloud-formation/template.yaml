@@ -225,6 +225,14 @@ Resources:
                   - ssm:GetConnectionStatus
                   - ssm:DescribeInstanceInformation
                 Resource: "*"
+        - PolicyName: CloudWatchAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: "*"
 
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
