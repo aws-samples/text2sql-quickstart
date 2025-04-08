@@ -87,7 +87,7 @@ Bedrock의 Foundation Model은 자동으로 활성화할 수 없습니다. 다�
 
 ### Execution Examples
 1. 애플리케이션 접근
-![애플리케이션 접근 시 이미지](readme-images/img.png)
+![애플리케이션 접근 시 이미지](readme-images/img1.png)
 2. 스키마 입력
 3. 증강 데이터 예시
 4. 쿼리 생성 및 결과 확인
