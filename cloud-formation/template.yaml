@@ -234,6 +234,7 @@ Resources:
       MasterUserPassword: !Ref MasterUserPassword
       VpcSecurityGroupIds: [!Ref RedshiftSecurityGroup]
       ClusterSubnetGroupName: !Ref RedshiftSubnetGroup
+      Encrypted: true
 
   RedshiftSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
